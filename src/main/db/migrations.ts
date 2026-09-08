@@ -28,7 +28,11 @@ function resolveMigrationsFolder(): string {
   }
   for (const c of candidates) if (hasJournal(c)) return c;
   // 未找到时返回首选候选，让 migrate() 抛出带路径的明确错误
-  return [...candidates][0];
+  const first = [...candidates][0];
+  if (first === undefined) {
+    throw new Error('无法定位 drizzle 迁移目录（meta/_journal.json 未找到）');
+  }
+  return first;
 }
 
 /**

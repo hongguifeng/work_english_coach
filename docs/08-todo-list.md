@@ -485,15 +485,24 @@ npm run db:migrate
 打包注意：`drizzle/` 需在 electron-builder 配 extraResources（T039/T040 处理）。`drizzle/` 从 .gitignore 移除（运行时必需，随仓库提交）。
 ---
 
-## T016：实现 Repository 层
+## T016：实现 Repository 层（2026-07-25 完成）
 
-- [ ] 实现 SkillRepository。
-- [ ] 实现 ExpressionRepository。
-- [ ] 实现 CommunicationSampleRepository。
-- [ ] 实现 ReviewTaskRepository。
-- [ ] 实现 ReviewAttemptRepository。
-- [ ] 禁止 UI 层直接访问数据库。
-- [ ] 为 Repository 编写单元测试。
+- [x] 实现 SkillRepository。
+- [x] 实现 ExpressionRepository。
+- [x] 实现 CommunicationSampleRepository。
+- [x] 实现 ReviewTaskRepository。
+- [x] 实现 ReviewAttemptRepository。
+- [x] 禁止 UI 层直接访问数据库。
+- [x] 为 Repository 编写单元测试。
+
+完成说明：
+
+- 7 个 Repository 全部实现于 `src/main/db/repositories/`：Settings / Skill / Expression / CommunicationSample / DetectedIssue / ReviewTask / ReviewAttempt。
+- 统一返回 `Result<T>`（`src/shared/types/app.ts`）；数据库异常经 `classifyError`/`toResult` 转为 `{ code, message, debug? }` 应用错误。
+- JSON 数组字段（clarificationQuestions / keywords / acceptableAnswers）通过 `parseStringArray`/`jsonEncode` 序列化与校验，非法结构抛错并由 `toResult` 优雅失败。
+- `CommunicationSampleRepository.saveWithIssues` 使用 SAVEPOINT 事务一次性写入样本与关联问题。
+- 单元测试基于 `node:sqlite` 自研 Drizzle 驱动（`tests/db/nodeSqliteDriver.ts`）跑在纯 Node/vitest，不依赖 Electron 的 better-sqlite3，也不依赖真实 AI；`mapRow` 复刻 Drizzle `mapResultRow` 的 `mapFromDriverValue`（boolean/日期等类型转换）。
+- 39 个 Repository 测试 + 5 个 reviewSchedule 测试全部通过。
 
 验收标准：
 

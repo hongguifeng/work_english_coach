@@ -22,6 +22,7 @@
     "src/main",
     "src/preload",
     "src/shared",
-    "scripts"
+    "scripts",
+    "tests"
   ]
 }
