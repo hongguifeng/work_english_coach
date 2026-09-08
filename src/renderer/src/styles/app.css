@@ -1,0 +1,352 @@
+/* 全局基础样式（T007：基础响应式） */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 主内容区：滚动限定在内容区内，避免整页滚动导致布局抖动 */
+.wec-content {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* 内容最大宽度，避免超大屏幕上内容拉得太散 */
+.wec-content-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  height: 100%;
+}
+
+/* 常见窗口宽度（<=1280）：收紧内边距 */
+@media (max-width: 1280px) {
+  .wec-content {
+    padding: 16px;
+  }
+}
+
+/* 极小宽度兜底（窗口 minWidth 为 1000，理论上不会触发） */
+@media (max-width: 1000px) {
+  .wec-content {
+    padding: 12px;
+  }
+}
+
+/* ===== 工作区页面（T008）：左表单 / 右结果 ===== */
+.wec-workspace-columns {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .wec-workspace-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.wec-panel {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.wec-form-item-plain {
+  margin-bottom: 8px !important;
+}
+
+.wec-loading-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 0;
+}
+
+.wec-version-block {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: #fafafa;
+  border-radius: 6px;
+}
+
+.wec-version-text {
+  margin: 6px 0 0 !important;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.wec-clarify-alert {
+  margin-bottom: 12px;
+}
+
+.wec-clarify-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.wec-issue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.wec-issue-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+}
+
+.wec-issue-texts {
+  font-size: 13px;
+}
+
+.wec-issue-original {
+  color: #999;
+  text-decoration: line-through;
+}
+
+.wec-issue-arrow {
+  margin: 0 6px;
+  color: #bbb;
+}
+
+.wec-issue-corrected {
+  color: #389e0d;
+  font-weight: 500;
+}
+
+.wec-lp-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+/* ===== 今日训练页面（T009）：左任务列表 / 右详情 ===== */
+.wec-training-columns {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .wec-training-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.wec-task-list-panel {
+  padding: 8px;
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+}
+
+.wec-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wec-task-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.wec-task-item:hover {
+  border-color: #d9d9d9;
+}
+
+.wec-task-item.active {
+  border-color: #1677ff;
+  background: #f0f7ff;
+}
+
+.wec-task-item.done .wec-task-title {
+  text-decoration: line-through;
+  color: #999;
+}
+
+.wec-task-item.skipped .wec-task-title {
+  color: #999;
+}
+
+.wec-task-item-disabled {
+  color: #999;
+  font-size: 13px;
+  padding: 12px;
+  text-align: center;
+}
+
+.wec-task-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.wec-task-dot.pending {
+  background: #1677ff;
+}
+
+.wec-task-dot.done {
+  background: #52c41a;
+}
+
+.wec-task-dot.skipped {
+  background: #d9d9d9;
+}
+
+.wec-task-body {
+  min-width: 0;
+}
+
+.wec-task-title {
+  font-size: 13px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.wec-task-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #999;
+}
+
+.wec-progress-text {
+  font-size: 13px;
+  color: #666;
+}
+
+.wec-task-prompt {
+  margin: 10px 0;
+}
+
+.wec-hint-alert {
+  margin-top: 10px;
+}
+
+.wec-answer-block {
+  margin-top: 12px;
+}
+
+.wec-feedback-list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ===== 表达库（T010） ===== */
+.wec-library-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.wec-library-search {
+  width: 280px;
+}
+
+.wec-library-empty {
+  margin-top: 80px;
+}
+
+.wec-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.wec-lib-card {
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wec-lib-card:hover {
+  border-color: #91caff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.wec-lib-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.wec-lib-card-corrected {
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 500;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.wec-lib-card-original {
+  font-size: 12px;
+  color: #999;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.wec-lib-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #f5f5f5;
+  padding-top: 8px;
+  margin-top: auto;
+}
+
+.wec-lib-card-meta {
+  font-size: 12px;
+  color: #999;
+}
+
+.wec-lib-card-actions {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.wec-lib-archive {
+  color: #fa541c;
+}

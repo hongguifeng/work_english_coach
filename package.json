@@ -1,0 +1,91 @@
+{
+  "name": "workenglish-coach",
+  "productName": "WorkEnglish Coach",
+  "version": "0.1.0",
+  "description": "WorkEnglish Coach - personal work-English coach (draft checking, review loop, expression library)",
+  "main": "out/main/index.js",
+  "author": "hong",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "package:win": "electron-vite build && electron-builder --win",
+    "rebuild": "electron-builder install-app-deps",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@types/sql.js": "^1.4.11",
+    "drizzle-orm": "^0.38.1",
+    "sql.js": "^1.14.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@ant-design/icons": "^5.6.1",
+    "@eslint/js": "^9.16.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "antd": "^5.23.0",
+    "drizzle-kit": "^0.30.0",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^3.0.0",
+    "eslint": "^9.16.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "globals": "^17.12.0",
+    "prettier": "^3.4.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.6",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.17.0",
+    "vite": "^6.0.3",
+    "vitest": "^3.0.0",
+    "zustand": "^5.0.3"
+  },
+  "allowScripts": {
+    "esbuild@0.18.20": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.19.12": true,
+    "better-sqlite3@12.11.1": true,
+    "electron@33.4.11": true
+  },
+  "build": {
+    "appId": "com.workenglish.coach",
+    "productName": "WorkEnglish Coach",
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "resources/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/sql.js/dist/sql-wasm.wasm",
+        "to": "sql-wasm.wasm"
+      }
+    ]
+  }
+}

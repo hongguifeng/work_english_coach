@@ -1,0 +1,987 @@
+## ⭐ ️ 默认助手
+
+下面是一个可以直接保存为：
+
+```text
+docs/08-todo-list.md
+```
+
+的开发 Todo List。建议让本地 AI **严格按照顺序执行**，一次只处理一个未完成事项。完成后将 `[ ]` 改为 `[x]`，并在每项后追加完成日期和简短说明。
+
+---
+
+# WorkEnglish Coach 开发 Todo List
+
+```md
+# WorkEnglish Coach 开发 Todo List
+
+## 使用规则
+
+1. 必须按照 Todo 顺序执行。
+2. 一次只处理一个 Todo。
+3. 完成一个 Todo 后，必须：
+   - 运行该 Todo 要求的检查命令。
+   - 确认没有破坏已有功能。
+   - 将对应的 `[ ]` 改为 `[x]`。
+   - 在 Todo 下方添加完成日期、修改文件和测试结果。
+4. 如果某个 Todo 无法完成：
+   - 不要标记为完成。
+   - 在该 Todo 下方记录阻塞原因。
+   - 说明已经尝试过的方案。
+   - 提出解决阻塞所需的最小下一步。
+5. 不允许跳过失败的 Todo 继续执行后续任务。
+6. 不允许一次完成多个 Todo。
+7. 不允许为了完成 Todo 而删除或破坏已有功能。
+8. 不允许伪造测试结果。
+9. 不确定需求时，优先选择最简单、最容易维护的实现。
+10. 当前阶段不实现 Todo 明确写为“暂不实现”的功能。
+
+---
+
+## 状态说明
+
+- `[ ]` 未完成
+- `[x]` 已完成
+- `[!]` 被阻塞
+- `[-]` 已取消
+
+---
+
+## 每次执行 Todo 前的固定流程
+
+本地 AI 必须先执行以下步骤：
+
+1. 阅读本 Todo List。
+2. 找到第一个 `[ ]` 或 `[!]` 项。
+3. 阅读与该任务相关的设计文档。
+4. 检查当前代码是否已经部分实现。
+5. 输出：
+   - 当前任务目标。
+   - 相关设计文档。
+   - 预计修改的文件。
+   - 实现步骤。
+   - 验收标准。
+6. 等待用户确认后再开始修改代码。
+
+如果用户明确要求“直接执行”，则可以开始修改。
+
+---
+
+## 每个 Todo 完成后的固定流程
+
+完成任务后必须：
+
+1. 运行相关测试。
+2. 运行 TypeScript 检查。
+3. 运行 ESLint。
+4. 检查 Git diff 或文件变更。
+5. 检查应用是否可以启动。
+6. 更新本文件中的任务状态。
+7. 输出：
+   - 完成内容。
+   - 修改文件。
+   - 测试命令及结果。
+   - 已知问题。
+   - 下一项 Todo。
+
+---
+
+# 一、项目初始化
+
+## T001：检查本地开发环境
+
+- [x] 检查 Windows、Node.js、npm、Git 是否可用。
+- [x] 检查 Node.js 是否为 LTS 版本。
+- [x] 检查当前项目是否已经初始化。
+- [x] 检查 package.json 是否存在。
+- [x] 检查是否存在 Electron、React、TypeScript 和 Vite。
+- [x] 记录当前环境和项目状态。
+
+完成记录（2026-07-25）：
+
+- 系统：Windows（git 2.38.1.windows.1）。
+- Node.js：v24.18.0（LTS "Krypton"，2025-10 起为 LTS）；npm 11.16.0。可用。
+- 项目状态：空项目。目录仅有 `AGENTS.md` 和 `docs/`，无 package.json，无 .git，不存在 Electron/React/TypeScript/Vite。
+- 结论：下一步为 T002，从零初始化 Electron + React + TypeScript + Vite 项目，并建议执行 `git init`。
+
+验收标准：
+
+- 能够明确当前项目是否为空项目。 ✅ 空项目
+- 能够明确 Node.js 和 npm 版本。 ✅ v24.18.0 / 11.16.0
+- 能够明确下一步应初始化还是继续开发。 ✅ 应初始化
+
+建议命令：
+
+```bash
+node --version
+npm --version
+git --version
+dir
+type package.json
+```
+
+---
+
+## T002：初始化 Electron + React + TypeScript + Vite
+
+- [x] 创建或补全 Electron 项目。
+- [x] 配置 React。
+- [x] 配置 TypeScript。
+- [x] 配置 Vite。
+- [x] 配置 Electron Main Process。
+- [x] 配置 Preload。
+- [x] 配置 Renderer。
+- [x] 添加基础启动脚本。
+
+完成记录（2026-07-25）：
+
+- 使用 `electron-vite`（main/preload/renderer 三段构建，preload 输出单文件 CJS 以满足 sandbox 要求）+ Vite 6 + React 19 + TypeScript 5。Electron 33.4.11（Chromium 130 / Node 20）。
+- `npm run dev`（`scripts/dev.mjs` 包装 electron-vite dev）启动 Vite dev server（:5173）并打开 Electron 窗口，HMR 可用；`npm run smoke`（`scripts/smoke.mjs`）用于构建后冒烟验证（WEC_AUTO_QUIT_MS 自动优雅退出，exit 0 = 通过）。
+- 重要环境问题：本机（Windows 11 26100.4061）AI 编码代理环境注入 `ELECTRON_RUN_AS_NODE=1`，导致 Electron 主进程 bootstrap 被跳过（process.type=undefined、require('electron') 返回字符串），表现为“Electron 无法启动”（对应 GitHub electron/electron#49034 同类问题）。`scripts/dev.mjs` 与 `scripts/smoke.mjs` 已显式清除该变量，在本环境验证通过；用户自己终端运行时不受影响。
+
+验收标准：
+
+```bash
+npm run dev
+```
+
+可以启动开发环境并打开 Electron 窗口。 ✅ 已验证（dev server + 窗口 + renderer 加载成功）
+
+---
+
+## T003：配置 TypeScript strict 模式
+
+- [x] 开启 TypeScript strict 模式。
+- [x] 检查 Main、Preload、Renderer 是否都能通过类型检查。
+- [x] 清理明显的隐式 any。
+- [x] 配置共享类型目录。
+
+完成记录（2026-07-25）：
+
+- `tsconfig.json`（root，strict: true, noUnusedLocals/Parameters, exactOptionalPropertyTypes）+ `tsconfig.node.json`（main/preload，Node20 lib）+ `tsconfig.web.json`（renderer，DOM lib）。
+- 共享类型目录 `src/shared/types/`（app.ts、desktopApi.ts）。
+- `npx tsc --noEmit` 通过。
+
+验收标准：
+
+```bash
+npm run typecheck
+```
+
+或者：
+
+```bash
+npx tsc --noEmit
+```
+
+执行成功。 ✅
+
+---
+
+## T004：配置 ESLint 和 Prettier
+
+- [x] 配置 ESLint。
+- [x] 配置 Prettier。
+- [x] 添加 `.editorconfig`。
+- [x] 添加 `.gitignore`。
+- [x] 添加 lint 和 format 脚本。
+- [x] 清理初始化项目中的明显 lint 错误。
+
+完成记录（2026-07-25）：
+
+- ESLint 9 flat config（`eslint.config.mjs`）：@eslint/js + typescript-eslint + react + react-hooks + prettier 互斥规则；main/preload/scripts 使用 node globals；renderer 使用浏览器 globals；`no-explicit-any` 为 error，`no-console` 关闭（桌面应用允许 console 日志）。
+- Prettier（`.prettierrc.json`）+ `.editorconfig`（LF、UTF-8、2 空格、80 列）+ `.gitignore`（out/、release/、node_modules/ 等）。
+- `npm run lint` 通过（0 错误）。
+
+验收标准：
+
+```bash
+npm run lint
+```
+
+执行成功。 ✅
+
+---
+
+## T005：配置 Electron 安全选项
+
+- [x] 设置 `contextIsolation: true`。
+- [x] 设置 `nodeIntegration: false`。
+- [x] 设置 `sandbox: true`。
+- [x] 设置 `webSecurity: true`。
+- [x] 禁止 Renderer 直接访问 Node.js。
+- [x] 禁止暴露完整 `ipcRenderer`。
+- [x] 添加最小化 Preload API。
+
+完成记录（2026-07-25）：
+
+- `createMainWindow.ts` 中 BrowserWindow webPreferences：`contextIsolation: true`、`nodeIntegration: false`、`sandbox: true`、`webSecurity: true`、`spellcheck: false`、`devTools` 仅开发环境开启；preload 为构建后的单文件 CJS（`out/preload/index.js`）。
+- Preload 仅通过 `contextBridge.exposeInMainWorld('desktop', ...)` 暴露最小 API（`ping()`、`appInfo()`），不暴露 `ipcRenderer` 本体；参数/返回类型由 `src/shared/types/desktopApi.ts` 约束。
+- 导航防护：`will-navigate` 仅允许 Vite dev server 或 `file://`；`setWindowOpenHandler` + `web-contents-created` 双保险，`window.open`/外链一律交系统浏览器并拒绝新窗口。
+- Renderer `index.html` 添加 CSP meta（default-src 'self'；connect-src 'self'；media-src 'self' blob:；object-src none 等）。
+
+验收标准：
+
+- Renderer 无法直接访问 `require`。 ✅（sandbox + contextIsolation）
+- Renderer 无法直接访问文件系统。 ✅
+- Renderer 只能通过已声明的 API 调用主进程能力。 ✅（仅 window.desktop.ping/appInfo）
+
+---
+
+## T006：实现基础 IPC 测试
+
+- [x] Main Process 注册测试 IPC。
+- [x] Preload 暴露测试方法。
+- [x] Renderer 调用测试方法。
+- [x] 页面显示测试返回结果。
+
+完成记录（2026-07-25）：
+
+- Main：`src/main/ipc/appHandlers.ts` 注册 `app:ping`（返回 `{ pong, platform, version }`）与 `app:info`；ipcMain handler 带参数类型与 try/catch，失败时以结构化错误返回。
+- Preload：`window.desktop.ping(): Promise<Pong>`、`window.desktop.appInfo(): Promise<AppInfo>`（类型在 shared/types/desktopApi.ts）。
+- Renderer：欢迎页挂载后自动调用 `ping()` 并展示返回结果（版本号、平台、pong），失败时展示错误信息；已随 `npm run dev` 验证。
+
+验收标准：
+
+- Electron 窗口可以从 Renderer 调用 Main Process。 ✅
+- IPC 调用参数和返回值有 TypeScript 类型。 ✅
+- IPC 失败时可以显示错误信息。 ✅（try/catch + 结构化错误）
+
+---
+
+# 二、基础界面
+
+## T007：创建基础页面布局
+
+- [x] 创建应用主布局。
+- [x] 创建左侧导航。
+- [x] 创建内容区域。
+- [x] 创建顶部标题区域。
+- [x] 添加基础响应式样式。
+- [x] 暂时使用 mock 数据。
+
+完成记录（2026-07-10）：
+
+- Layout：antd Sider(220px, dark) + Header(56px, 面包屑标题) + Content(可滚动, max-width 1200px, 响应式 padding)；5 个占位页面均使用共享 PageHeader（标题/描述/操作区）。
+- 路由：HashRouter（适配 file:// 生产模式），/→workspace，含 /today /expressions /errors /settings；未匹配路由显示 404 Result。
+- 安全：web-contents-created 统一拦截 window.open（外部 http/https 走系统浏览器）与 will-navigate（仅允许应用自身 URL）；renderer index.html 内嵌 CSP meta。
+- 开发态：did-finish-load/did-fail-load/console-message 日志（devLog，仅 !isPackaged）；WEC_START_HASH（初始加载后跳转指定 hash）与 WEC_SMOKE_SHOT（截图后退出）钩子，用于 5 页面视觉验证（标题/选中态/布局均正确）。
+- 注意：did-finish-load 是 WebContents 事件，监听对象必须是 webContents 而非 BrowserWindow（已修复一处类型错误）。
+- 验证：tsc --noEmit ✅、eslint ✅、npm run build ✅、smoke ✅。
+
+验收标准：
+
+- 应用有统一布局。 ✅
+- 页面切换时布局不闪烁。 ✅（Sider/Header 常驻，仅 Content 内路由切换）
+- Windows 常见窗口尺寸下可以正常显示。 ✅（960x600 实测 + ≤880px 响应式内边距）
+
+---
+
+## T008：创建工作台页面
+
+- [x] 创建中文原意输入框。
+- [x] 创建英文草稿输入框。
+- [x] 创建场景选择框。
+- [x] 创建沟通对象选择框。
+- [x] 创建语气选择框。
+- [x] 创建检查按钮。
+- [x] 创建结果展示区域。
+
+完成记录（2026-07-10）：
+
+- 表单（左栏）：`pages/workspace/DraftForm.tsx`，antd Form 校验（英文草稿必填且 ≥1 字，中文意图可选，长度上限 2000/10000 防止过长请求）；场景 Select（4 项，默认 email，值域=04 契约 sourceType）、对象 Select（5 项，audience）、语气 Segmented（neutral/formal/friendly/firm，tone）、「保存原文」Checkbox（默认勾选，遵循“用户数据可选择不保存”原则）；检查按钮防双击（loading 时禁用，文案「AI 检查中…（mock）」）。
+- 结果区（右栏）：`pages/workspace/AnalysisResultCard.tsx`——loading=Spin+mock 提示；空态=引导文案；结果=双版本卡片（最小修改版/自然表达版，标注“AI 修改不能直接算作用户掌握”）+问题列表（severity 四色 Tag：错误红/表达建议蓝/语气风险橙/意思不明确金，值域=04 契约；category Tag + 原文删除线→修改绿色 + 中文说明）+本次学习点/迁移练习预览（参考答案隐藏）+shouldClarify 时显示确认问题 Alert+「保存并生成复习」按钮（点击提示 T022-T032 未接入，不写入数据）。
+- 共享常量：`shared/constants/scenes.ts`（SCENE_OPTIONS / AUDIENCE_OPTIONS / TONE_OPTIONS，值域与数据库枚举一致）。
+- Mock：`pages/workspace/mockAnalysis.ts` 模拟 700ms 延迟返回符合 shared 类型 AnalysisResult 的示例数据（T022 替换为真实 AI 调用，UI 无需改动）。
+- 验证：tsc ✅、eslint ✅、build+smoke ✅；开发态 WEC_AUTO_SUBMIT=1 钩子（仅 !isPackaged）自动填表+点击+等待 mock 后截图，确认表单/结果/问题列表/学习点渲染均正确。
+
+验收标准：
+
+- 用户可以完整填写表单。 ✅
+- 英文草稿为空时不能提交。 ✅（Form 校验 required + min 1，实测拦截）
+- 提交时按钮显示 loading。 ✅（「AI 检查中…（mock）」）
+- 页面可以显示 mock 纠错结果。 ✅（截图验证）
+
+---
+
+## T009：创建今日训练页面
+
+- [x] 创建今日任务列表。
+- [x] 创建空状态。
+- [x] 创建任务详情区域。
+- [x] 创建提交答案按钮。
+- [x] 创建提示按钮。
+- [x] 创建参考答案按钮。
+- [x] 暂时使用 mock 任务。
+
+完成记录（2026-07-10）：
+
+- 页面（左右双栏，与工作台一致）：左侧 `TaskList.tsx` 今日任务列表——状态圆点（待办蓝/完成绿/跳过灰）、任务类型标签（句型迁移/错误纠正/场景写作，值域=03 数据模型 review_tasks.type）、场景元数据、完成后标题删除线样式、点击选中高亮；顶部“已完成 n/总数”进度。右侧任务详情卡（无选中/列表为空时为友好空状态）：题目（04 契约 prompt）、作答输入框（placeholder 区分类型）、提交按钮（<10 字符禁用，提交中 loading）、提示/参考答案按钮（点击展开 Alert，答案展开后不再折叠）、跳过按钮（Popconfirm）。
+- 提交反馈：`mockReview.ts` 模拟 400ms 返回 04 契约 Evaluation——answer<10 判核心意思错误（分 40）；未用提示分 88/用过提示 72；feedback 最多 3 条（含 1 条职场习惯建议）；improvedAnswer 返回任务参考答案。成功后展示成功 Alert（区分是否用提示）+ 结果标签（核心意思✓/✗、语法✓、语气✓、AI 分（辅助指标））+ 点评列表 + 改进版文本，并标注“AI 评估结果将在 T031 接入后显示；本题的复习调度将在 T030 生效”。
+- 任务完成/跳过后自动切到下一个待办任务；会话状态（作答/提示/已揭示/提交结果）按任务 id 保存在页面组件中。
+- 验证：tsc ✅、eslint ✅、build+smoke ✅；开发态 WEC_SMOKE_SHOT + WEC_AUTO_JS（模拟点击菜单→填答案→点提交）截图确认：列表/选中/提交/评估/进度/状态样式全部正确。已知：开发态直接以 #hash 启动会被 Vite 开发环境重定向回根路径（打包后 file:// 不受影响），验证用模拟点击菜单完成。
+
+验收标准：
+
+- 有任务时显示任务。 ✅
+- 没有任务时显示友好空状态。 ✅（右侧空态“选择左侧任务开始复习”；任务列表为空时显示“暂无待复习任务”）
+- 用户可以填写答案。 ✅
+- 用户可以查看提示和参考答案。 ✅
+
+---
+
+## T010：创建表达库页面
+
+- [x] 创建表达列表。
+- [x] 创建搜索框。
+- [x] 创建场景筛选。
+- [x] 创建掌握状态筛选。
+- [x] 创建表达详情。
+- [x] 创建新增表达按钮。
+- [x] 创建编辑和删除按钮。
+
+完成记录（2026-07-10）：
+
+- 共享类型：`shared/types/library.ts`（ExpressionRecord / AddExpressionInput / UpdateExpressionInput，字段与 04 契约一致）；`shared/constants/issues.ts`（11 类错误类别中文标签，值域=04 契约 category）。
+- 数据（mock）：`pages/library/mockLibrary.ts` 6 条种子数据（3 邮件 / 2 IM / 1 会议；2 已掌握 / 4 待复习 / 1 已归档）；`pages/library/ExpressionStore.ts` Zustand 页面内状态（add/update/archive/restore，T026 替换为 IPC + SQLite，组件不变）。
+- 页面：`pages/LibraryPage.tsx`——搜索框（对原始/推荐/说明做不区分大小写子串匹配）+ 场景/掌握状态/使用中-已归档三个 Select 筛选 + 卡片网格（场景/对象/掌握标签、推荐表达加粗、原始表达置灰、练习次数、详情/编辑/归档操作，归档带 Popconfirm 二次确认，已归档可恢复）；空列表显示 Empty。
+- 弹窗：`ExpressionFormModal.tsx`（新增/编辑共用：场景、对象、原始表达、推荐表达必填且 ≤2000 字符，错误类别/要点说明可选，掌握状态默认“待复习”）；`ExpressionDetailModal.tsx`（Descriptions 展示全部字段 + 练习情况 + 编辑/归档/恢复操作）。
+- 验证：tsc ✅、eslint ✅、build+smoke ✅；开发态 WEC_AUTO_JS 截图确认：列表渲染、搜索“apologize”命中 1 条、新增弹窗表单渲染均正确。
+
+验收标准：
+
+- 使用 mock 数据时，列表、搜索和筛选正常。 ✅（搜索“apologize”截图验证；筛选为纯前端过滤）
+- 删除操作有二次确认。 ✅（归档=删除入口，Popconfirm 二次确认）
+- 空列表时显示空状态。 ✅（Empty 组件）
+
+---
+
+## T011：创建设置页面
+
+- [ ] 创建 Base URL 设置。
+- [ ] 创建模型名称设置。
+- [ ] 创建 API Key 设置。
+- [ ] 创建超时时间设置。
+- [ ] 创建是否保存原文设置。
+- [ ] 创建是否启用脱敏设置。
+- [ ] 创建测试连接按钮。
+- [ ] 创建导出数据按钮。
+- [ ] 创建删除数据按钮。
+
+验收标准：
+
+- API Key 输入框为密码类型。
+- 删除数据有二次确认。
+- 设置页有保存成功和失败提示。
+
+---
+
+# 三、数据库和数据层
+
+## T012：选择并安装 SQLite 驱动
+
+- [ ] 优先尝试 `better-sqlite3`。
+- [ ] 安装 Drizzle ORM。
+- [ ] 配置 Electron 原生模块 rebuild。
+- [ ] 验证开发环境可以加载 SQLite。
+- [ ] 验证 Windows 环境可以正常读写。
+
+如果 `better-sqlite3` 遇到 Electron ABI 或打包问题：
+
+- [ ] 记录具体错误。
+- [ ] 先尝试正确配置 rebuild。
+- [ ] 如果仍然无法稳定运行，评估切换 `sql.js`。
+
+验收标准：
+
+- Electron Main Process 可以创建数据库。
+- 可以创建表。
+- 可以插入和读取测试数据。
+
+---
+
+## T013：实现数据库路径和初始化
+
+- [ ] 使用 `app.getPath('userData')` 获取数据目录。
+- [ ] 创建应用专用数据库目录。
+- [ ] 首次启动自动初始化数据库。
+- [ ] 数据库初始化失败时显示明确错误。
+- [ ] 不把数据库放在项目源码目录。
+
+验收标准：
+
+- 首次运行自动创建数据库。
+- 重启应用后数据库仍然存在。
+- 数据库文件位于 Windows 用户数据目录。
+
+---
+
+## T014：实现 Drizzle Schema
+
+- [ ] 创建 `communication_samples` 表。
+- [ ] 创建 `detected_issues` 表。
+- [ ] 创建 `skills` 表。
+- [ ] 创建 `expressions` 表。
+- [ ] 创建 `review_tasks` 表。
+- [ ] 创建 `review_attempts` 表。
+- [ ] 创建 `settings` 表。
+- [ ] 添加必要索引。
+- [ ] 添加时间字段。
+
+验收标准：
+
+- Schema 与 `docs/03-data-model.md` 一致。
+- TypeScript 类型可以从 Schema 推导。
+- 数据库迁移可以成功执行。
+
+---
+
+## T015：实现数据库迁移
+
+- [ ] 配置 Drizzle migration。
+- [ ] 创建第一版 migration。
+- [ ] 实现应用启动时执行 migration。
+- [ ] 测试空数据库初始化。
+- [ ] 测试已有数据库升级。
+
+验收标准：
+
+```bash
+npm run db:generate
+npm run db:migrate
+```
+
+均可执行成功。
+
+---
+
+## T016：实现 Repository 层
+
+- [ ] 实现 SkillRepository。
+- [ ] 实现 ExpressionRepository。
+- [ ] 实现 CommunicationSampleRepository。
+- [ ] 实现 ReviewTaskRepository。
+- [ ] 实现 ReviewAttemptRepository。
+- [ ] 禁止 UI 层直接访问数据库。
+- [ ] 为 Repository 编写单元测试。
+
+验收标准：
+
+- Repository 可以完成基本 CRUD。
+- 数据库异常被转换为应用错误。
+- 测试不依赖真实 AI。
+
+---
+
+## T017：实现数据导出和删除
+
+- [ ] 实现全部学习数据导出为 JSON。
+- [ ] 导出时不包含 API Key。
+- [ ] 实现删除全部数据。
+- [ ] 删除操作需要二次确认。
+- [ ] 删除后页面状态自动刷新。
+
+验收标准：
+
+- 导出文件可以被重新读取。
+- 导出文件不包含 API Key。
+- 删除后数据库中的学习数据为空。
+
+---
+
+# 四、AI 配置和基础设施
+
+## T018：实现安全密钥存储
+
+- [ ] 安装并配置 `keytar`。
+- [ ] API Key 保存到 Windows Credential Manager。
+- [ ] 实现保存 API Key。
+- [ ] 实现读取 API Key。
+- [ ] 实现删除 API Key。
+- [ ] Renderer 不得获得原始 API Key。
+
+验收标准：
+
+- API Key 不存在 SQLite。
+- API Key 不出现在日志。
+- 设置页只能显示是否已配置，不显示完整 Key。
+
+---
+
+## T019：实现 AI 配置服务
+
+- [ ] 实现 Base URL 保存。
+- [ ] 实现模型名称保存。
+- [ ] 实现超时时间保存。
+- [ ] 实现请求前读取安全存储中的 API Key。
+- [ ] 配置默认值。
+- [ ] 对 Base URL 和超时时间进行校验。
+
+验收标准：
+
+- 关闭并重新打开应用后配置仍存在。
+- API Key 不会通过普通设置接口返回到 Renderer。
+
+---
+
+## T020：实现 OpenAI 兼容 AI Client
+
+- [ ] 创建 `AiClient` 接口。
+- [ ] 创建 `OpenAICompatibleClient`。
+- [ ] 支持 Base URL。
+- [ ] 支持模型名称。
+- [ ] 支持 API Key。
+- [ ] 支持超时。
+- [ ] 支持网络错误。
+- [ ] 支持 HTTP 错误。
+- [ ] 支持返回内容解析。
+- [ ] 支持 mock client。
+
+验收标准：
+
+- 可以调用 OpenAI 兼容接口。
+- 可以通过 mock 测试替代真实 AI。
+- AI 请求失败时返回统一 AppError。
+
+---
+
+## T021：实现 Zod AI 输出 Schema
+
+- [ ] 定义 Draft Analysis 输出 schema。
+- [ ] 定义 Review Generation 输出 schema。
+- [ ] 定义 Review Evaluation 输出 schema。
+- [ ] 对 AI 结果进行解析。
+- [ ] 对字段缺失进行错误处理。
+- [ ] 对非法枚举值进行错误处理。
+
+验收标准：
+
+- 合法 JSON 可以通过。
+- 非法 JSON 不会导致应用崩溃。
+- Schema 错误可以返回用户可理解的提示。
+
+---
+
+# 五、工作台纠错功能
+
+## T022：实现纠错输入 IPC
+
+- [ ] 定义 AnalyzeDraftInput。
+- [ ] 使用 Zod 校验输入。
+- [ ] 实现 `ai:analyze-draft` IPC。
+- [ ] 限制英文输入最大长度。
+- [ ] 处理空输入。
+- [ ] 处理请求取消或超时。
+
+验收标准：
+
+- 非法输入不会发送到 AI。
+- 请求失败后可以重试。
+- Renderer 可以获得结构化结果。
+
+---
+
+## T023：实现纠错 Prompt
+
+- [ ] 添加系统 Prompt。
+- [ ] 添加用户 Prompt 模板。
+- [ ] 明确标记用户内容是数据。
+- [ ] 要求保留日期、数字、人物、责任人和承诺。
+- [ ] 要求区分错误与风格建议。
+- [ ] 要求返回 JSON。
+- [ ] 不让 AI 返回 Markdown。
+
+验收标准：
+
+- 使用固定 mock 输入可以得到预期结构。
+- Prompt 不包含用户 API Key。
+- Prompt 不会把用户文本当作系统指令。
+
+---
+
+## T024：实现工作台 AI 结果展示
+
+- [ ] 展示最小修改版。
+- [ ] 展示自然表达版。
+- [ ] 展示错误列表。
+- [ ] 展示重点学习点。
+- [ ] 展示练习题。
+- [ ] 实现复制按钮。
+- [ ] 实现重新检查按钮。
+- [ ] 处理 AI 结果为空。
+
+验收标准：
+
+- 长文本展示正常。
+- 代码块或特殊字符不会导致页面异常。
+- 复制成功有提示。
+- AI 请求期间不能重复提交。
+
+---
+
+## T025：实现保存纠错结果
+
+- [ ] 保存 communication_sample。
+- [ ] 保存 detected_issues。
+- [ ] 去重或复用已有 skill。
+- [ ] 根据设置决定是否保存原文。
+- [ ] 支持保存表达。
+- [ ] 支持保存重点知识点。
+
+验收标准：
+
+- 用户主动保存后数据进入 SQLite。
+- 关闭应用后仍能查看。
+- 不保存原文时，知识点仍然可以用于复习。
+
+---
+
+# 六、表达库和错误档案
+
+## T026：实现表达库真实数据
+
+- [ ] 用 IPC 替换 mock 数据。
+- [ ] 实现表达列表。
+- [ ] 实现新增表达。
+- [ ] 实现编辑表达。
+- [ ] 实现删除表达。
+- [ ] 实现搜索。
+- [ ] 实现场景筛选。
+- [ ] 实现状态筛选。
+
+验收标准：
+
+- CRUD 完整可用。
+- 刷新页面后数据不丢失。
+- 删除操作可恢复前有明确确认。
+
+---
+
+## T027：实现错误档案
+
+- [ ] 查询高频错误。
+- [ ] 按 category 分组。
+- [ ] 按 skillKey 聚合。
+- [ ] 显示出现次数。
+- [ ] 显示最近出现时间。
+- [ ] 显示最近练习结果。
+- [ ] 显示掌握状态。
+- [ ] 支持查看示例。
+
+验收标准：
+
+- 同一个 skillKey 可以聚合多次错误。
+- AI 修改不被统计为用户掌握。
+- 页面能区分错误和表达建议。
+
+---
+
+# 七、今日训练和复习闭环
+
+## T028：实现复习任务生成
+
+- [ ] 从重点知识点生成任务。
+- [ ] 从表达库生成任务。
+- [ ] 避免重复生成完全相同的任务。
+- [ ] 生成不同场景的迁移题。
+- [ ] 保存 promptZh、context、keywords 和 referenceAnswer。
+- [ ] 支持 taskType。
+
+验收标准：
+
+- 保存一个知识点后可以生成任务。
+- 新任务默认状态为 pending。
+- 任务包含中文场景和参考答案。
+
+---
+
+## T029：实现今日任务查询
+
+- [ ] 查询 scheduledAt <= 当前时间的任务。
+- [ ] 按优先级排序。
+- [ ] 优先显示错题。
+- [ ] 其次显示到期表达。
+- [ ] 显示今日完成数量。
+- [ ] 显示待完成数量。
+
+验收标准：
+
+- 今日训练页面可以显示真实数据库任务。
+- 没有任务时显示空状态。
+- 时区处理正确。
+
+---
+
+## T030：实现复习答题界面
+
+- [ ] 默认不展示答案。
+- [ ] 支持填写英文答案。
+- [ ] 支持显示关键词提示。
+- [ ] 支持显示参考答案。
+- [ ] 记录 usedHint。
+- [ ] 记录 revealedAnswer。
+- [ ] 防止重复提交。
+
+验收标准：
+
+- 用户可以先提交自己的答案。
+- 提交前不会默认显示参考答案。
+- 使用提示后数据记录正确。
+
+---
+
+## T031：实现复习答案评价
+
+- [ ] 定义 EvaluateReviewInput。
+- [ ] 调用 AI 评价答案。
+- [ ] 判断核心意思。
+- [ ] 判断语法。
+- [ ] 判断语气。
+- [ ] 判断目标知识点。
+- [ ] 输出中文反馈。
+- [ ] 输出改进答案。
+- [ ] 保存 review_attempt。
+
+验收标准：
+
+- 不要求用户逐字匹配参考答案。
+- 表达意思正确但词语不同，不应判错。
+- AI 失败时可以重试或暂存答案。
+
+---
+
+## T032：实现复习调度算法
+
+- [ ] 实现首次复习 1 天后。
+- [ ] 实现 1、3、7、14、30 天间隔。
+- [ ] 使用提示时不直接升级掌握度。
+- [ ] 查看答案后标记为学习中。
+- [ ] 答错后安排近期复习。
+- [ ] 独立答对后提升掌握状态。
+
+验收标准：
+
+- 调度逻辑有单元测试。
+- 边界日期有测试。
+- 重启应用后复习时间不变化。
+
+---
+
+# 八、统计功能
+
+## T033：实现基础学习统计
+
+- [ ] 显示本周练习次数。
+- [ ] 显示独立完成次数。
+- [ ] 显示待复习任务数量。
+- [ ] 显示高频错误。
+- [ ] 显示近七天练习趋势。
+
+注意：
+
+- 不生成没有可靠依据的英语等级分数。
+- 不把 AI 自动修改次数算作掌握。
+- 统计应基于 review_attempts。
+
+验收标准：
+
+- 统计数据与数据库记录一致。
+- 没有数据时显示空状态。
+- 日期范围处理正确。
+
+---
+
+# 九、口语功能
+
+## T034：设计录音能力
+
+- [ ] 设计录音页面或组件。
+- [ ] 获取麦克风权限。
+- [ ] 显示权限状态。
+- [ ] 显示录音时长。
+- [ ] 支持开始录音。
+- [ ] 支持停止录音。
+- [ ] 支持删除录音。
+- [ ] 不默认永久保存音频。
+
+验收标准：
+
+- Windows 下可以正常录音。
+- 用户拒绝权限时有清晰提示。
+- 录音失败不会导致应用崩溃。
+
+---
+
+## T035：实现语音转文字
+
+- [ ] 接入语音识别服务。
+- [ ] 对音频进行转写。
+- [ ] 支持转写失败重试。
+- [ ] 允许用户修正转写内容。
+- [ ] 不在日志中记录完整音频内容。
+
+验收标准：
+
+- 可以得到可编辑的转写文本。
+- 转写失败时显示原因。
+- 音频文件可以被用户删除。
+
+---
+
+## T036：实现口语内容分析
+
+- [ ] 根据工作场景分析口语转写。
+- [ ] 检查信息是否完整。
+- [ ] 检查语法。
+- [ ] 检查表达清晰度。
+- [ ] 检查是否包含下一步行动。
+- [ ] 生成第二次录音建议。
+
+不实现：
+
+- 精确发音分数。
+- “像母语者程度”之类不可靠评价。
+- 对短录音给出绝对水平判断。
+
+验收标准：
+
+- 用户能看到最多三个重点反馈。
+- 反馈可以直接用于第二次录音。
+- 支持重新录制。
+
+---
+
+# 十、桌面体验
+
+## T037：实现显式读取剪贴板
+
+- [ ] 添加“读取剪贴板”按钮。
+- [ ] 用户点击后才能读取。
+- [ ] 读取后显示文本预览。
+- [ ] 不后台监听剪贴板。
+- [ ] 不自动发送到 AI。
+- [ ] 支持用户修改后再提交。
+
+验收标准：
+
+- 读取动作由用户主动触发。
+- 读取内容在提交 AI 前可见。
+- 用户可以取消。
+
+---
+
+## T038：实现全局快捷键
+
+- [ ] 注册打开应用快捷键。
+- [ ] 检查快捷键冲突。
+- [ ] 快捷键失败时显示提示。
+- [ ] 支持设置中修改或关闭。
+- [ ] 注销快捷键时清理资源。
+
+验收标准：
+
+- 应用运行时快捷键可打开窗口。
+- 应用退出时不残留快捷键。
+- 冲突不会导致应用崩溃。
+
+---
+
+# 十一、发布和维护
+
+## T039：配置 electron-builder
+
+- [ ] 配置 Windows 打包。
+- [ ] 配置应用名称和图标。
+- [ ] 配置数据库资源处理。
+- [ ] 配置原生模块处理。
+- [ ] 配置安装目录。
+- [ ] 验证生产包可以启动。
+
+验收标准：
+
+- 可以生成 Windows 安装包。
+- 打包应用可以调用 AI。
+- 打包应用可以读写数据库。
+- 打包应用可以保存和读取 API Key。
+
+---
+
+## T040：生产包完整测试
+
+- [ ] 首次安装测试。
+- [ ] 首次启动测试。
+- [ ] 配置 API Key 测试。
+- [ ] AI 纠错测试。
+- [ ] 数据保存测试。
+- [ ] 重启测试。
+- [ ] 数据导出测试。
+- [ ] 数据删除测试。
+- [ ] 升级或重新安装测试。
+- [ ] 卸载行为测试。
+
+---
+
+## T041：补充用户文档
+
+- [ ] 编写安装说明。
+- [ ] 编写 API 配置说明。
+- [ ] 编写隐私说明。
+- [ ] 编写数据目录说明。
+- [ ] 编写故障排查说明。
+- [ ] 编写 AI 服务兼容性说明。
+- [ ] 编写如何备份数据说明。
+
+---
+
+# 十二、暂不实现的功能
+
+以下功能即使用户提出，也要先评估是否会破坏当前 MVP：
+
+- [ ] 多用户账号系统
+- [ ] 云端同步
+- [ ] 自动发送邮件
+- [ ] 自动发送即时通讯消息
+- [ ] 后台持续读取剪贴板
+- [ ] 自动读取邮箱
+- [ ] 自动读取企业聊天记录
+- [ ] 实时 AI 语音对话
+- [ ] 发音精确评分
+- [ ] 自动生成完整英语课程
+- [ ] 多 Agent 协作
+- [ ] 向量数据库
+- [ ] 在线排行榜
+- [ ] 社交分享
+- [ ] 移动端
+```
+
+---
+
+## 让本地 AI 严格执行 Todo 的补充提示
+
+你还可以把下面这段单独发给本地 AI：
+
+```text
+从 docs/08-todo-list.md 开始工作。
+
+规则：
+
+1. 只处理第一个未完成的 Todo。
+2. 不要自动处理后续 Todo。
+3. 先告诉我你准备处理哪个 Todo。
+4. 说明将修改哪些文件。
+5. 等我确认后再写代码；如果我说“直接执行”，才开始修改。
+6. 完成后运行该 Todo 要求的测试。
+7. 只有测试真实通过，才把 `[ ]` 修改成 `[x]`。
+8. 如果失败，将其改成 `[!]`，不要继续。
+9. 每次回复最后告诉我：
+   - 当前完成了哪个 Todo。
+   - 当前阻塞是什么。
+   - 下一步是哪一个 Todo。
+10. 不要伪造命令执行结果。
+11. 不要把多个 Todo 合并成一个任务。
+12. 不要删除已有代码来规避错误。
+```
+
+---
+
+建议你实际使用时，先让本地 AI 完成 `T001`。它检查完项目后，再根据当前状态开始 `T002`。这样可以避免本地 AI 在尚未弄清 Electron 工程结构的情况下，直接生成大量互相冲突的代码。
