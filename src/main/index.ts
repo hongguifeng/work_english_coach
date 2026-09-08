@@ -1,25 +1,56 @@
-import { app, shell } from 'electron';
+import { app, dialog, shell } from 'electron';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import Database from 'better-sqlite3';
+import { closeDatabase, getDbFile, initDatabase } from './db/database';
+
 import { createMainWindow } from './windows/createMainWindow';
 import { registerAppIpc } from './ipc/appHandlers';
 
+// 显式固定应用名（未打包/探针场景下 Electron 会回退为 "Electron"，
+// 导致 userData 落在 %APPDATA%/Electron）；打包后 productName 同名，行为一致。
+app.setName('WorkEnglish Coach');
+
 /**
- * 开发期 SQLite 探针（T012）：WEC_DB_PROBE=1 时在主进程创建内存库并验证读写，
- * 输出 `[dev] db:probe ...` 后退出，用于判定 better-sqlite3 与 Electron ABI 是否兼容。
+ * 开发期数据库探针（T013）：WEC_DB_PROBE=1 时在真实文件数据库上验证：
+ * 首次运行建表插入，再次运行发现表仍存在（持久化验证），输出 `[dev] db:probe ...` 后退出。
  */
 function runDbProbe(): void {
   const started = Date.now();
   try {
-    const db = new Database(':memory:');
-    db.exec('CREATE TABLE probe (a INTEGER NOT NULL)');
-    db.prepare('INSERT INTO probe (a) VALUES (?)').run(42);
-    const row = db.prepare('SELECT a FROM probe').get() as { a: number } | undefined;
-    const ok = row?.a === 42;
-    db.close();
-    devLog(`db:probe ${ok ? 'ok' : 'mismatch'} (${Date.now() - started}ms, node ${process.versions.node} electron ${process.versions.electron})`);
+    const db = initDatabase();
+    const raw = db.$client;
+    const file = getDbFile();
+    const existed = raw
+      .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'wec_probe'`)
+      .get() !== undefined;
+    raw.exec(`CREATE TABLE IF NOT EXISTS wec_probe (id INTEGER PRIMARY KEY, n INTEGER NOT NULL)`);
+    if (!existed) {
+      raw.prepare(`INSERT INTO wec_probe (n) VALUES (42)`).run();
+    }
+    const row = raw.prepare(`SELECT n FROM wec_probe`).get() as { n: number } | undefined;
+    const ok = row?.n === 42 && existsSync(file);
+    closeDatabase();
+    devLog(
+      `db:probe ${ok ? 'ok' : 'fail'} (${Date.now() - started}ms, file: ${file}, persistedFromPreviousRun: ${existed}, node ${process.versions.node} electron ${process.versions.electron})`,
+    );
   } catch (err) {
     devLog('db:probe fail:', err instanceof Error ? err.message : String(err));
+  }
+}
+
+/**
+ * 启动时初始化数据库（T013）。
+ * 失败时弹出明确错误对话框但不强制退出（个人工具：页面可先浏览，
+ * 依赖数据的操作会在 T016 后自行 fail fast）。
+ */
+function bootDatabase(): void {
+  try {
+    initDatabase();
+    devLog(`db:ready (${getDbFile()})`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    devLog('db:init fail:', msg);
+    dialog.showErrorBox('数据库初始化失败', msg);
   }
 }
 
@@ -44,12 +75,14 @@ if (!gotTheLock) {
       app.quit();
       return;
     }
+    bootDatabase();
     registerAppIpc();
     mainWindow = createMainWindow();
   });
 }
 
 app.on('window-all-closed', () => {
+  closeDatabase();
   app.quit();
 });
 
