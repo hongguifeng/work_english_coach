@@ -388,23 +388,32 @@ npm run lint
 
 ## T012：选择并安装 SQLite 驱动
 
-- [ ] 优先尝试 `better-sqlite3`。
-- [ ] 安装 Drizzle ORM。
-- [ ] 配置 Electron 原生模块 rebuild。
-- [ ] 验证开发环境可以加载 SQLite。
-- [ ] 验证 Windows 环境可以正常读写。
+- [x] 优先尝试 `better-sqlite3`。→ **完成（v12.11.1）**。v13.0.3 在 Electron 33 下段错误（v13 预编译用 NAPI 10，Electron 33/Node 20.18 最高支持 NAPI 9）；降回 v12.11.1（NAPI 9，与参考项目 local_ai_proxy 一致）后加载正常。
+- [x] 安装 Drizzle ORM。→ `drizzle-orm@0.38.1`（`drizzle-orm/better-sqlite3` 驱动）。
+- [x] 配置 Electron 原生模块 rebuild。→ **`@electron/rebuild` 对本包是静默 no-op**（binding.gyp 用 `force_build==1 or prebuild_exists==0` 门控编译 target，npm 预编译存在时生成空 Utility 工程，MSBuild 0 编译 0 错误，@electron/rebuild 不透传 force 标志）。改为直接驱动 node-gyp：新增 `scripts/rebuild-native.mjs`（`npm run rebuild:electron`），自动读取 electron 版本，设置 `npm_config_target/runtime/disturl` 后 `node-gyp rebuild --directory=node_modules/better-sqlite3`。headers 缓存在 `%LOCALAPPDATA%\node-gyp\Cache\33.4.11`（本机已有）。
+- [x] 验证开发环境可以加载 SQLite。
+- [x] 验证 Windows 环境可以正常读写。
 
-如果 `better-sqlite3` 遇到 Electron ABI 或打包问题：
+不需要切换 `sql.js`（保留为备选：`sql.js@1.14.2` + `@types/sql.js` 已安装未用，T013 确认文件型 DB 无问题后移除）。
 
-- [ ] 记录具体错误。
-- [ ] 先尝试正确配置 rebuild。
-- [ ] 如果仍然无法稳定运行，评估切换 `sql.js`。
+**踩坑记录（新机器重装时若再遇同类问题看这里）：**
 
-验收标准：
+1. 不要装 better-sqlite3 v13+（NAPI 10 与 Electron ≤33 不兼容，硬崩溃）；package.json 已精确锁版 `12.11.1`（不用 `^`）。
+2. v12 npm 包自带 `.node` 是 **Node 24 ABI (137)**，Electron 33 需要 **ABI 130**，必须源码编译（`npm run rebuild:electron`）；npm 的 allow-scripts 会跳过 postinstall，所以全新 `npm install` 后也没有 .node，同样需要 rebuild 步骤。
+3. 若 Electron 版本升级，rebuild 脚本会自动跟随（从 electron 包读版本号）。
 
-- Electron Main Process 可以创建数据库。
-- 可以创建表。
-- 可以插入和读取测试数据。
+完成日期: 2026-07-20
+
+**验收标准全部通过**（`node scripts/db-probe.mjs`，在真实 Electron 33.4.11 main 进程内）：
+
+```
+[dev] app ready
+[dev] db:probe ok (291ms, node 20.18.3 electron 33.4.11)
+```
+
+probe 流程: `drizzle-orm/better-sqlite3` 打开 `:memory:` → 建全部 7 张真实表（communication_samples/detected_issues/skills/expressions/review_tasks/review_attempts/settings）→ 每张表 insert → 按主键查询 → 更新 masteryStatus/intervalDays → 条件 delete → count 聚合（7/7/2/2/4/4）→ 退出码 0。
+
+修改文件: `package.json`（better-sqlite3 12.11.1 锁版；移除 @electron/rebuild、@types/better-sqlite3）、`package-lock.json`、`src/main/index.ts`（probe 改用 Drizzle+真实 schema）、`scripts/db-probe.mjs`（删 ELECTRON_RUN_AS_NODE，1500ms 兜底退出）、新增 `scripts/rebuild-native.mjs`、删除 `scripts/electron-db-test.cjs`（诊断脚本）。
 
 ---
 

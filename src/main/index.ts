@@ -1,7 +1,27 @@
 import { app, shell } from 'electron';
 import { join } from 'node:path';
+import Database from 'better-sqlite3';
 import { createMainWindow } from './windows/createMainWindow';
 import { registerAppIpc } from './ipc/appHandlers';
+
+/**
+ * 开发期 SQLite 探针（T012）：WEC_DB_PROBE=1 时在主进程创建内存库并验证读写，
+ * 输出 `[dev] db:probe ...` 后退出，用于判定 better-sqlite3 与 Electron ABI 是否兼容。
+ */
+function runDbProbe(): void {
+  const started = Date.now();
+  try {
+    const db = new Database(':memory:');
+    db.exec('CREATE TABLE probe (a INTEGER NOT NULL)');
+    db.prepare('INSERT INTO probe (a) VALUES (?)').run(42);
+    const row = db.prepare('SELECT a FROM probe').get() as { a: number } | undefined;
+    const ok = row?.a === 42;
+    db.close();
+    devLog(`db:probe ${ok ? 'ok' : 'mismatch'} (${Date.now() - started}ms, node ${process.versions.node} electron ${process.versions.electron})`);
+  } catch (err) {
+    devLog('db:probe fail:', err instanceof Error ? err.message : String(err));
+  }
+}
 
 let mainWindow: ReturnType<typeof createMainWindow> | null = null;
 
@@ -19,6 +39,11 @@ if (!gotTheLock) {
 
   app.whenReady().then(() => {
     devLog('app ready');
+    if (process.env.WEC_DB_PROBE === '1') {
+      runDbProbe();
+      app.quit();
+      return;
+    }
     registerAppIpc();
     mainWindow = createMainWindow();
   });
