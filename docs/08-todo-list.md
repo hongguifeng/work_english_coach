@@ -358,21 +358,29 @@ npm run lint
 
 ## T011：创建设置页面
 
-- [ ] 创建 Base URL 设置。
-- [ ] 创建模型名称设置。
-- [ ] 创建 API Key 设置。
-- [ ] 创建超时时间设置。
-- [ ] 创建是否保存原文设置。
-- [ ] 创建是否启用脱敏设置。
-- [ ] 创建测试连接按钮。
-- [ ] 创建导出数据按钮。
-- [ ] 创建删除数据按钮。
+- [x] 创建 Base URL 设置。
+- [x] 创建模型名称设置。
+- [x] 创建 API Key 设置。
+- [x] 创建超时时间设置。
+- [x] 创建是否保存原文设置。
+- [x] 创建是否启用脱敏设置。
+- [x] 创建测试连接按钮。
+- [x] 创建导出数据按钮。
+- [x] 创建删除数据按钮。
+
+完成记录（2026-07-10）：
+
+- 共享类型：`shared/types/settings.ts`——`aiSettingsSchema`（Zod：baseUrl 合法 http(s) URL ≤500、model 非空 ≤100、timeoutSeconds 整数 5-300、saveOriginal/redactEnabled 布尔）+ `DEFAULT_AI_SETTINGS`（默认指向本地测试服务 127.0.0.1:12346/v1 / qwen3.8-27b）。API Key 不进入该类型（docs/03 §2.7：settings 表只存 key/value，Key 走系统凭据存储）。
+- 页内状态：`pages/settings/SettingsStore.ts`——zustand persist 到 localStorage（partialize 只持久化 ai，API Key 仅内存、绝不落盘，符合 docs/01 §5.5；T016 切换 IPC+SQLite、T018 切换 DPAPI）。
+- 页面：`pages/SettingsPage.tsx` 三段式——AI 服务（Base URL / 模型 / API Key 密码输入框 / 超时 / 测试连接按钮，测试为 mock：800ms 后按校验结果显示成功/失败 Alert，T021 接真实调用）；数据与隐私（保存原文、启用脱敏两个 Switch，各带影响说明）；数据管理（导出数据按钮——mock 提示“T012 接入数据库后生效”；删除全部数据——danger 按钮 + Popconfirm 二次确认“不可恢复”）。
+- 保存流程：点击“保存设置”→ antd Form 校验（必填）→ Zod safeParse（失败=红色 message 保存失败+原因，不写 store；成功=写 store + 绿色提示，并注明 API Key 未写入磁盘）。
+- 验证：tsc ✅、eslint ✅、build+smoke ✅；WEC_AUTO_JS 截图确认页面渲染与“测试连接”成功 Alert。
 
 验收标准：
 
-- API Key 输入框为密码类型。
-- 删除数据有二次确认。
-- 设置页有保存成功和失败提示。
+- API Key 输入框为密码类型。 ✅（Input.Password）
+- 删除数据有二次确认。 ✅（Popconfirm，确认后才执行；T011 阶段为 mock 提示）
+- 设置页有保存成功和失败提示。 ✅（Zod 校验失败→保存失败提示；通过→保存成功提示）
 
 ---
 
