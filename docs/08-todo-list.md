@@ -419,11 +419,11 @@ probe 流程: `drizzle-orm/better-sqlite3` 打开 `:memory:` → 建全部 7 张
 
 ## T013：实现数据库路径和初始化
 
-- [ ] 使用 `app.getPath('userData')` 获取数据目录。
-- [ ] 创建应用专用数据库目录。
-- [ ] 首次启动自动初始化数据库。
-- [ ] 数据库初始化失败时显示明确错误。
-- [ ] 不把数据库放在项目源码目录。
+- [x] 使用 `app.getPath('userData')` 获取数据目录。
+- [x] 创建应用专用数据库目录。
+- [x] 首次启动自动初始化数据库。
+- [x] 数据库初始化失败时显示明确错误。
+- [x] 不把数据库放在项目源码目录。
 
 验收标准：
 
@@ -431,19 +431,23 @@ probe 流程: `drizzle-orm/better-sqlite3` 打开 `:memory:` → 建全部 7 张
 - 重启应用后数据库仍然存在。
 - 数据库文件位于 Windows 用户数据目录。
 
+
+完成日期: 2026-09-09。
+`src/main/db/database.ts`：getDbDir=`userData/work-english-coach/`，getDbFile=`.../work-english-coach.db`；initDatabase 幂等（建目录→打开 better-sqlite3→WAL+外键→Drizzle 实例并缓存），失败抛带文件路径与原因的错误；getDatabase fail fast；closeDatabase 在 window-all-closed 释放。`app.setName('WorkEnglish Coach')` 固定 userData。
+验收：`WEC_DB_PROBE=1` 文件型探针——首次运行建表（persistedFromPreviousRun:false）→ 进程重启后再运行检测到表仍在（:true）→ 磁盘文件存在。移除 sql.js/@types/sql.js。
 ---
 
 ## T014：实现 Drizzle Schema
 
-- [ ] 创建 `communication_samples` 表。
-- [ ] 创建 `detected_issues` 表。
-- [ ] 创建 `skills` 表。
-- [ ] 创建 `expressions` 表。
-- [ ] 创建 `review_tasks` 表。
-- [ ] 创建 `review_attempts` 表。
-- [ ] 创建 `settings` 表。
-- [ ] 添加必要索引。
-- [ ] 添加时间字段。
+- [x] 创建 `communication_samples` 表。
+- [x] 创建 `detected_issues` 表。
+- [x] 创建 `skills` 表。
+- [x] 创建 `expressions` 表。
+- [x] 创建 `review_tasks` 表。
+- [x] 创建 `review_attempts` 表。
+- [x] 创建 `settings` 表。
+- [x] 添加必要索引。
+- [x] 添加时间字段。
 
 验收标准：
 
@@ -451,7 +455,10 @@ probe 流程: `drizzle-orm/better-sqlite3` 打开 `:memory:` → 建全部 7 张
 - TypeScript 类型可以从 Schema 推导。
 - 数据库迁移可以成功执行。
 
----
+
+
+完成日期: 2026-07-20（commit 4144496）。
+`src/main/db/schema.ts`：7 张表（communication_samples/detected_issues/skills/expressions/review_tasks/review_attempts/settings），字段与 docs/03 完全一致（camelCase、ISO-8601 text 时间戳、布尔转 INTEGER、JSON 列存 TEXT）；skills 加 skillKey 唯一索引；导出 7 个 Row 类型；probe 中 7/7 表 insert/select/update/delete 全通过。---
 
 ## T015：实现数据库迁移
 
