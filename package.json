@@ -16,7 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "node scripts/db-migrate.mjs",
     "package:win": "electron-vite build && electron-builder --win",
     "rebuild": "electron-builder install-app-deps",
     "smoke": "node scripts/smoke.mjs"

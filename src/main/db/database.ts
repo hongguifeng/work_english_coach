@@ -15,12 +15,15 @@ export type AppDatabase = BetterSQLite3Database<typeof schema> & {
   $client: Database.Database;
 };
 
-/** 应用专用数据目录：Windows 用户数据目录（%APPDATA%/WorkEnglish Coach/work-english-coach），绝不放在项目源码目录 */
+/** 应用专用数据目录：Windows 用户数据目录（%APPDATA%/WorkEnglish Coach/work-english-coach），绝不放在项目源码目录。开发/测试可用 WEC_DB_DIR 覆盖。 */
 export function getDbDir(): string {
+  if (process.env.WEC_DB_DIR) return process.env.WEC_DB_DIR;
   return join(app.getPath('userData'), 'work-english-coach');
 }
 
+/** 数据库文件路径。开发/测试可用 WEC_DB_FILE（完整路径）覆盖。 */
 export function getDbFile(): string {
+  if (process.env.WEC_DB_FILE) return process.env.WEC_DB_FILE;
   return join(getDbDir(), 'work-english-coach.db');
 }
 

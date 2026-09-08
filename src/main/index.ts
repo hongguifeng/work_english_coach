@@ -1,7 +1,8 @@
 import { app, dialog, shell } from 'electron';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { closeDatabase, getDbFile, initDatabase } from './db/database';
+import { closeDatabase, getDatabase, getDbFile, initDatabase } from './db/database';
+import { runMigrations } from './db/migrations';
 
 import { createMainWindow } from './windows/createMainWindow';
 import { registerAppIpc } from './ipc/appHandlers';
@@ -39,18 +40,47 @@ function runDbProbe(): void {
 }
 
 /**
- * 启动时初始化数据库（T013）。
+ * 启动时初始化数据库并执行迁移（T013/T015）。
  * 失败时弹出明确错误对话框但不强制退出（个人工具：页面可先浏览，
  * 依赖数据的操作会在 T016 后自行 fail fast）。
  */
 function bootDatabase(): void {
   try {
     initDatabase();
-    devLog(`db:ready (${getDbFile()})`);
+    const applied = runMigrations();
+    devLog(`db:ready (${getDbFile()}, migrations: ${applied.length})`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    devLog('db:init fail:', msg);
+    devLog('db:init/migrate fail:', msg);
     dialog.showErrorBox('数据库初始化失败', msg);
+  }
+}
+
+/** 列出当前数据库中所有用户表（用于迁移探针验证）。 */
+function dbTables(): string[] {
+  const rows = getDatabase()
+    .$client.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+    .all() as Array<{ name: string }>;
+  return rows.map((r) => r.name);
+}
+
+/**
+ * 开发期迁移探针（T015）：WEC_DB_MIGRATE=1 时执行迁移并报告已记录的迁移，然后退出。
+ */
+function runMigrateProbe(): void {
+  const started = Date.now();
+  try {
+    initDatabase();
+    const applied = runMigrations();
+    const tables = (dbTables()) as string[];
+    closeDatabase();
+    devLog(
+      `db:migrate ok (${Date.now() - started}ms, recorded: ${applied.length}${
+        applied.length ? ' [' + applied.join(', ') + ']' : ''
+      }, tables: ${tables.length} [${tables.join(', ')}], file: ${getDbFile()})`,
+    );
+  } catch (err) {
+    devLog('db:migrate fail:', err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -72,6 +102,11 @@ if (!gotTheLock) {
     devLog('app ready');
     if (process.env.WEC_DB_PROBE === '1') {
       runDbProbe();
+      app.quit();
+      return;
+    }
+    if (process.env.WEC_DB_MIGRATE === '1') {
+      runMigrateProbe();
       app.quit();
       return;
     }

@@ -462,11 +462,11 @@ probe 流程: `drizzle-orm/better-sqlite3` 打开 `:memory:` → 建全部 7 张
 
 ## T015：实现数据库迁移
 
-- [ ] 配置 Drizzle migration。
-- [ ] 创建第一版 migration。
-- [ ] 实现应用启动时执行 migration。
-- [ ] 测试空数据库初始化。
-- [ ] 测试已有数据库升级。
+- [x] 配置 Drizzle migration。
+- [x] 创建第一版 migration。
+- [x] 实现应用启动时执行 migration。
+- [x] 测试空数据库初始化。
+- [x] 测试已有数据库升级。
 
 验收标准：
 
@@ -477,6 +477,12 @@ npm run db:migrate
 
 均可执行成功。
 
+
+完成日期: 2026-09-09。
+`drizzle.config.ts`（dialect sqlite / schema=src/main/db/schema.ts / out=drizzle）；`npm run db:generate` 产出 `drizzle/0000_unique_kylun.sql` + `meta/_journal.json` + `meta/0000_snapshot.json`（drizzle-kit 0.30.6）。
+`src/main/db/migrations.ts::runMigrations()` 用 `drizzle-orm/better-sqlite3/migrator` 执行；`resolveMigrationsFolder()` 从 `app.getAppPath()`/`__dirname` 向上逐级搜索含 `meta/_journal.json` 的目录（开发=项目根，打包=resources，`WEC_MIG_FOLDER` 可覆盖）。启动时由 `bootDatabase()` 调用（幂等，`__drizzle_migrations` 记录）。
+验证：`npm run db:generate` / `npm run db:migrate` 均成功；空库首次=8 张表(7 真实+__drizzle_migrations, recorded:1)；重跑幂等(recorded:1, 不重复)；`scripts/migrate-upgrade-test.mjs` 隔离证明升级(阶段A recorded:1 → 同库加0001阶段B recorded:2, 0000 不重放, 退出0)；smoke 正常启动 `db:ready (migrations: 1)`。
+打包注意：`drizzle/` 需在 electron-builder 配 extraResources（T039/T040 处理）。`drizzle/` 从 .gitignore 移除（运行时必需，随仓库提交）。
 ---
 
 ## T016：实现 Repository 层
