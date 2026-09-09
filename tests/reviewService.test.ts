@@ -70,7 +70,8 @@ describe('getTodayReview', () => {
 
   it('orders skill-based (wrong question) tasks before expression-based ones', async () => {
     const { tdb, repos } = setup();
-    const now = new Date();
+    // now 固定为本地今天 12:00（不依赖真实时间：种子任务在 08:00/10:00，保证两者都已到期）
+    const now = new Date(localIso(0, 12));
     const skill = mustOk(
       repos.skills.upsert({
         skillKey: 'tense_present_perfect',
