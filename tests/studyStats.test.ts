@@ -84,7 +84,7 @@ describe('aggregateTrend', () => {
     const total = points.reduce((s, p) => s + p.count, 0);
     expect(total).toBeGreaterThanOrEqual(1);
     expect(total).toBeLessThanOrEqual(3);
-    expect(points[0].count + points[1].count).toBe(0);
+    expect(points[0]!.count + points[1]!.count).toBe(0);
   });
 
   it('counts each timestamp at most once', () => {

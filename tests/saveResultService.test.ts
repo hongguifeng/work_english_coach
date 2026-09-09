@@ -106,11 +106,14 @@ describe('saveCorrectionResult (T025)', () => {
       expect(issues.every((i) => i.sampleId === summary.sampleId)).toBe(true);
       expect(issues.map((i) => i.severity)).toEqual(['suggestion', 'error']); // 按 skillKey 排序：grammar 在 tense 前
 
-      // 知识点：1 条（分类取最严重问题 = tense/error）
+      // 知识点：2 条 = keyLearningPoint + 其余错误知识点（②-b 补建，分类取最严重问题 = tense/error）
       const skills = client.prepare('SELECT * FROM skills').all() as Array<Record<string, unknown>>;
-      expect(skills).toHaveLength(1);
+      expect(skills).toHaveLength(2);
       expect(skills[0]?.skillKey).toBe('tense:will-vs-going-to');
       expect(skills[0]?.category).toBe('tense');
+      expect(skills[1]?.skillKey).toBe('grammar:passive-voice');
+      expect(skills[1]?.title).toBe('be delivered'); // 标题取修改后表达
+      expect(skills[1]?.category).toBe('grammar');
 
       // 表达：masteryStatus=new，关联样本，example=自然表达版
       const exprs = client.prepare('SELECT * FROM expressions').all() as Array<Record<string, unknown>>;
@@ -179,13 +182,13 @@ describe('saveCorrectionResult (T025)', () => {
       expect(client.prepare('SELECT COUNT(*) AS n FROM expressions').get()).toMatchObject({ n: 0 });
       expect(client.prepare('SELECT COUNT(*) AS n FROM communication_samples').get()).toMatchObject({ n: 1 });
       expect(client.prepare('SELECT COUNT(*) AS n FROM detected_issues').get()).toMatchObject({ n: 2 });
-      expect(client.prepare('SELECT COUNT(*) AS n FROM skills').get()).toMatchObject({ n: 1 });
+      expect(client.prepare('SELECT COUNT(*) AS n FROM skills').get()).toMatchObject({ n: 2 }); // KLP + ②-b 补建
     } finally {
       close();
     }
   });
 
-  it('skill 去重复用：同 skillKey 二次保存 → 单行且标题更新', () => {
+  it('skill 去重复用：同 skillKey 二次保存 → KLP 单行且标题更新；②-b 已有行不重建', () => {
     const { db, client, close } = createTestDb();
     try {
       const repos = createRepositories(db);
@@ -212,10 +215,43 @@ describe('saveCorrectionResult (T025)', () => {
       expect(second.ok).toBe(true);
 
       const skills = client.prepare('SELECT * FROM skills').all() as Array<Record<string, unknown>>;
-      expect(skills).toHaveLength(1);
-      expect(skills[0]?.title).toBe('will vs going to（更新版）');
+      expect(skills).toHaveLength(2); // KLP + ②-b 行（二次保存未重复创建）
+      const klp = skills.find((s) => s.skillKey === 'tense:will-vs-going-to');
+      expect(klp?.title).toBe('will vs going to（更新版）');
       // 样本不受去重影响
       expect(client.prepare('SELECT COUNT(*) AS n FROM communication_samples').get()).toMatchObject({ n: 2 });
+    } finally {
+      close();
+    }
+  });
+
+  it('②-b 已有 skills 行不被覆盖：非 KLP 的 skillKey 之前已是 KLP 时保留原标题/说明', () => {
+    const { db, client, close } = createTestDb();
+    try {
+      const repos = createRepositories(db);
+      // 预置：grammar:passive-voice 之前作为 keyLearningPoint 写入（标题更完整）
+      const seeded = repos.skills.upsert({
+        skillKey: 'grammar:passive-voice',
+        title: '被动语态（完整说明版）',
+        category: 'grammar',
+        explanationZh: '正式场合优先被动语态。',
+      });
+      expect(seeded.ok).toBe(true);
+
+      const result = saveCorrectionResult(repos, {
+        input: INPUT,
+        result: makeResult(), // KLP=tense:will-vs-going-to；issues 含 grammar:passive-voice
+        saveOriginal: true,
+        saveExpression: false,
+      });
+      expect(result.ok).toBe(true);
+
+      const row = client
+        .prepare('SELECT * FROM skills WHERE skillKey = ?')
+        .get('grammar:passive-voice') as Record<string, unknown>;
+      expect(row.title).toBe('被动语态（完整说明版）'); // 未被 issue 的 correctedText 覆盖
+      expect(row.explanationZh).toBe('正式场合优先被动语态。');
+      expect(client.prepare('SELECT COUNT(*) AS n FROM skills').get()).toMatchObject({ n: 2 });
     } finally {
       close();
     }

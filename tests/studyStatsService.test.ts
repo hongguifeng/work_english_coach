@@ -145,7 +145,7 @@ describe('studyStatsService', () => {
       '2026-07-18',
       '2026-07-19',
     ]);
-    expect(d.trend[0].count).toBe(0);
+    expect(d.trend[0]!.count).toBe(0);
     expect(d.trend.every((p) => p.count <= 1)).toBe(true);
     expect(d.trend.reduce((s, p) => s + p.count, 0)).toBe(2); // C 在窗口外
     expect(d.hasAnyData).toBe(true);

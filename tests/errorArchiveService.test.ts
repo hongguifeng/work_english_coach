@@ -149,11 +149,11 @@ describe('buildErrorArchive（T027）', () => {
 
     // 时间轴：lastSeen 排序 s2(07-10) > s3(07-05) > s1(07-03)
     const issueTimes: [string, string][] = [
-      [issues.data[0].id, '2026-07-01T10:00:00Z'],
-      [issues.data[1].id, '2026-07-02T10:00:00Z'],
-      [issues.data[2].id, '2026-07-03T10:00:00Z'],
-      [issues.data[3].id, '2026-07-10T10:00:00Z'],
-      [issues.data[4].id, '2026-07-05T10:00:00Z'],
+      [issues.data[0]!.id, '2026-07-01T10:00:00Z'],
+      [issues.data[1]!.id, '2026-07-02T10:00:00Z'],
+      [issues.data[2]!.id, '2026-07-03T10:00:00Z'],
+      [issues.data[3]!.id, '2026-07-10T10:00:00Z'],
+      [issues.data[4]!.id, '2026-07-05T10:00:00Z'],
     ];
     for (const [id, t] of issueTimes) {
       db.db
@@ -230,7 +230,7 @@ describe('buildErrorArchive（T027）', () => {
     expect(e.lastPracticeAt).toBe('2026-07-09T09:00:00Z');
     expect(e.lastPracticeCorrect).toBe(true);
     expect(e.examples.length).toBe(3);
-    expect(e.examples[0].createdAt).toBe('2026-07-03T10:00:00Z'); // 示例倒序
+    expect(e.examples[0]!.createdAt).toBe('2026-07-03T10:00:00Z'); // 示例倒序
   });
 
   it('s2：1 错误、从未练习 → 新学', () => {

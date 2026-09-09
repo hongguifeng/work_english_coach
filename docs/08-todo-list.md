@@ -955,11 +955,11 @@ npm run db:migrate
 
 ## T035：实现语音转文字
 
-- [ ] 接入语音识别服务。
-- [ ] 对音频进行转写。
-- [ ] 支持转写失败重试。
-- [ ] 允许用户修正转写内容。
-- [ ] 不在日志中记录完整音频内容。
+- [-] 接入语音识别服务。
+- [-] 对音频进行转写。
+- [-] 支持转写失败重试。
+- [-] 允许用户修正转写内容。
+- [-] 不在日志中记录完整音频内容。
 
 验收标准：
 
@@ -971,12 +971,12 @@ npm run db:migrate
 
 ## T036：实现口语内容分析
 
-- [ ] 根据工作场景分析口语转写。
-- [ ] 检查信息是否完整。
-- [ ] 检查语法。
-- [ ] 检查表达清晰度。
-- [ ] 检查是否包含下一步行动。
-- [ ] 生成第二次录音建议。
+- [-] 根据工作场景分析口语转写。
+- [-] 检查信息是否完整。
+- [-] 检查语法。
+- [-] 检查表达清晰度。
+- [-] 检查是否包含下一步行动。
+- [-] 生成第二次录音建议。
 
 不实现：
 
@@ -996,12 +996,12 @@ npm run db:migrate
 
 ## T037：实现显式读取剪贴板
 
-- [ ] 添加“读取剪贴板”按钮。
-- [ ] 用户点击后才能读取。
-- [ ] 读取后显示文本预览。
-- [ ] 不后台监听剪贴板。
-- [ ] 不自动发送到 AI。
-- [ ] 支持用户修改后再提交。
+- [-] 添加“读取剪贴板”按钮。
+- [-] 用户点击后才能读取。
+- [-] 读取后显示文本预览。
+- [-] 不后台监听剪贴板。
+- [-] 不自动发送到 AI。
+- [-] 支持用户修改后再提交。
 
 验收标准：
 
@@ -1013,11 +1013,11 @@ npm run db:migrate
 
 ## T038：实现全局快捷键
 
-- [ ] 注册打开应用快捷键。
-- [ ] 检查快捷键冲突。
-- [ ] 快捷键失败时显示提示。
-- [ ] 支持设置中修改或关闭。
-- [ ] 注销快捷键时清理资源。
+- [-] 注册打开应用快捷键。
+- [-] 检查快捷键冲突。
+- [-] 快捷键失败时显示提示。
+- [-] 支持设置中修改或关闭。
+- [-] 注销快捷键时清理资源。
 
 验收标准：
 
@@ -1031,12 +1031,12 @@ npm run db:migrate
 
 ## T039：配置 electron-builder
 
-- [ ] 配置 Windows 打包。
-- [ ] 配置应用名称和图标。
-- [ ] 配置数据库资源处理。
-- [ ] 配置原生模块处理。
-- [ ] 配置安装目录。
-- [ ] 验证生产包可以启动。
+- [x] 配置 Windows 打包。
+- [x] 配置应用名称和图标。
+- [x] 配置数据库资源处理。
+- [x] 配置原生模块处理。
+- [x] 配置安装目录。
+- [x] 验证生产包可以启动。
 
 验收标准：
 
@@ -1044,6 +1044,15 @@ npm run db:migrate
 - 打包应用可以调用 AI。
 - 打包应用可以读写数据库。
 - 打包应用可以保存和读取 API Key。
+
+
+完成记录（2026-07-23）：
+
+- build 配置（package.json "build" 字段）：electronDist 指向本机 node_modules/electron/dist（electron 官方 Windows 版）；npmRebuild: false，better-sqlite3 / keytar 用 npm run rebuild（install-app-deps）手动对齐 ABI；asar: true + asarUnpack（better-sqlite3 的 .node 原生模块不能进 asar）；win 图标 build/icon.ico（npm run icon:generate 从 PNG 生成）。
+- 数据库资源处理：无需打包内嵌资源——SQLite 文件在 userData 下按需创建（getDbDir），安装目录只含程序文件（docs/03 §7）。
+- 生产包启动验证 + CDP 验收（WEC_CDP_PORT env 开关启用 in-process --remote-debugging-port，Electron 33 不接受 CLI flag）：隔离临时 DB + 真实 AI（qwen3.8-27b @ 127.0.0.1:12346），14/14 全过：窗口/应用版本 → 设置页（AI 三字段+保存+DB 断言、API Key 保存+toast）→ 表达库手动添加（modal+DB 断言）→ 工作区 AI 纠错（真实 AI 分析+确认并保存+DB 断言）→ 错误档案生成复习任务（Drawer+toast+DB 断言）。
+- 验收中发现并修复产品 bug：T025 保存流程只为 keyLearningPoint upsert skills 行，其余错误知识点（issue.skillKey）无主表行 → 错误档案「生成复习任务」报「知识点不存在」。修复：saveResultService 新增 ②-b 步——每个 issue 的 skillKey 无 skills 行时创建（标题取修改后表达、分类/说明取 issue），已有行不覆盖（不破坏既有更完整标题）；tests/saveResultService.test.ts 同步更新 + 新增 2 用例。
+- CDP 验收脚本（tmp-t039-*.mjs，不提交，见 docs/09）；关键经验：Electron 33 CDP 只能 in-process appendSwitch、spawn 必须 stdio:'pipe'、CDP 返回是字符串信封、waitUntil 需显式调用函数式谓词、antd 两字按钮含空格需归一化、destroyOnHidden 后 modal DOM 残留需看 wrap 显隐。
 
 ---
 

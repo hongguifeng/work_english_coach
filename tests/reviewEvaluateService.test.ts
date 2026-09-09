@@ -129,7 +129,7 @@ describe('evaluateReviewAnswer', () => {
 
     const rows = readAttemptRows(real, 'task-1');
     expect(rows.length).toBe(1);
-    const row = rows[0];
+    const row = rows[0]!;
     expect(row.userAnswer).toBe('We havent received the goods yet, please check.');
     expect(row.usedHint).toBe(1);
     expect(row.revealedAnswer).toBe(0);
@@ -156,7 +156,7 @@ describe('evaluateReviewAnswer', () => {
     expect(res.data.evaluation.feedbackZh).toEqual(['a', 'b', 'c']);
 
     const rows = readAttemptRows(real, 'task-1');
-    expect(JSON.parse(String(rows[0].feedbackZh))).toEqual(['a', 'b', 'c']);
+    expect(JSON.parse(String(rows[0]!.feedbackZh))).toEqual(['a', 'b', 'c']);
 
     real.close();
   });
