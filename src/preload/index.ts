@@ -7,6 +7,12 @@ import type { Result } from '../shared/types/app';
 import type { AiSettings } from '../shared/types/settings';
 import type { AnalyzeDraftInput, AnalyzeDraftResult } from '../shared/types/ai';
 import type { SaveCorrectionPayload, SaveCorrectionSummary } from '../shared/types/saveResult';
+import type {
+  CreateExpressionInput,
+  ExpressionRecord,
+  ExpressionStatus,
+  UpdateExpressionInput,
+} from '../shared/types/library';
 
 /**
  * Preload 入口（T004 / T005 / T012 / T017）
@@ -44,6 +50,15 @@ const desktopApi: DesktopApi = {
   // T025：保存纠错结果（主进程在 IPC 边界重新 Zod 校验后写库）。
   saveAnalysisResult: (payload: SaveCorrectionPayload) =>
     invoke<SaveCorrectionSummary>('result:save', payload),
+  // T026：表达库 CRUD（数据来自 SQLite；主进程在 IPC 边界重新 Zod 校验）。
+  expressionList: () => invoke<ExpressionRecord[]>('expression:list'),
+  expressionCreate: (input: CreateExpressionInput) =>
+    invoke<ExpressionRecord>('expression:create', input),
+  expressionUpdate: (id: string, patch: UpdateExpressionInput) =>
+    invoke<ExpressionRecord>('expression:update', id, patch),
+  expressionDelete: (id: string) => invoke<boolean>('expression:delete', id),
+  expressionSetStatus: (id: string, status: ExpressionStatus) =>
+    invoke<ExpressionRecord>('expression:set-status', id, status),
   onDataChanged: (cb) => {
     const listener = (
       _e: IpcRendererEvent,

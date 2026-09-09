@@ -10,6 +10,7 @@ import { registerAppIpc } from './ipc/appHandlers';
 import { registerAiConfigIpc } from './ipc/aiConfigHandlers';
 import { registerDataIpc } from './ipc/dataHandlers';
 import { registerClipboardIpc } from './ipc/clipboardHandlers';
+import { registerExpressionIpc } from './ipc/expressionHandlers';
 import { registerResultIpc } from './ipc/resultHandlers';
 import { registerSecretIpc } from './ipc/secretHandlers';
 import { devLog } from './log';
@@ -93,6 +94,14 @@ function runMigrateProbe(): void {
 
 let mainWindow: ReturnType<typeof createMainWindow> | null = null;
 
+// E2E/远程调试（仅 dev）：用 env 开启 CDP。不用 CLI --remote-debugging-port：
+// Electron 33.4.11 在 Windows 上会把它当 bad option 拒收并直接退出。
+const e2eCdpPort = process.env.ELECTRON_CDP_PORT;
+if (e2eCdpPort) {
+  app.commandLine.appendSwitch('remote-debugging-port', e2eCdpPort);
+  app.commandLine.appendSwitch('remote-allow-origins', '*');
+}
+
 // 单实例保护：个人工具，同一时间只允许一个实例
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
@@ -123,6 +132,7 @@ if (!gotTheLock) {
     registerAiConfigIpc();
     registerDataIpc();
     registerClipboardIpc();
+    registerExpressionIpc();
     registerResultIpc();
     registerSecretIpc();
     mainWindow = createMainWindow();

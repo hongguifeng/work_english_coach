@@ -3,6 +3,12 @@ import type { AiSettings } from './settings';
 import type { DataChangedEvent, DeleteSummary, ExportResult } from './data';
 import type { AnalyzeDraftInput, AnalyzeDraftResult } from './ai';
 import type { SaveCorrectionPayload, SaveCorrectionSummary } from './saveResult';
+import type {
+  CreateExpressionInput,
+  ExpressionRecord,
+  ExpressionStatus,
+  UpdateExpressionInput,
+} from './library';
 
 /**
  * Preload 暴露给渲染进程的最小 API 接口（T012）
@@ -57,6 +63,16 @@ export interface DesktopApi {
    * （知识点/表达仍可用于复习）。非法载荷 → validation（T025）。
    */
   saveAnalysisResult(payload: SaveCorrectionPayload): Promise<Result<SaveCorrectionSummary>>;
+  /** 列出全部表达（含归档），按创建时间倒序；搜索/筛选在页面侧完成（T026）。 */
+  expressionList(): Promise<Result<ExpressionRecord[]>>;
+  /** 手动新增表达（非法载荷 → validation）（T026）。 */
+  expressionCreate(input: CreateExpressionInput): Promise<Result<ExpressionRecord>>;
+  /** 编辑表达（含归档/恢复；非法载荷 → validation；id 不存在 → storage）（T026）。 */
+  expressionUpdate(id: string, patch: UpdateExpressionInput): Promise<Result<ExpressionRecord>>;
+  /** 永久删除表达（不可恢复，UI 需二次确认）；返回是否实际删除（T026）。 */
+  expressionDelete(id: string): Promise<Result<boolean>>;
+  /** 归档 / 恢复表达（T026）。 */
+  expressionSetStatus(id: string, status: ExpressionStatus): Promise<Result<ExpressionRecord>>;
   /**
    * 订阅主进程的数据变更广播（目前触发点：删除全部数据）。
    * 返回取消订阅函数（用于 React useEffect 清理）（T017）。

@@ -147,8 +147,11 @@ function describeIssue(it: z.ZodIssue): string {
       return `${field} 太${it.type === 'number' ? '大' : '长'}（最大 ${it.maximum}）`;
     case 'invalid_string':
       return `${field} 格式无效（${it.validation}）`;
-    case 'unrecognized_keys':
-      return `${field} 含未预期字段`;
+    case 'unrecognized_keys': {
+      if (it.path.length > 0) return `${field} 含未预期字段`;
+      const keys = it.keys.join('、');
+      return keys ? `含未预期字段「${keys}」` : '整体结构 含未预期字段';
+    }
     default:
       return `${field}：${it.message}`;
   }

@@ -1,122 +1,151 @@
-// T010（mock）：表达详情弹窗（含编辑 / 归档 / 恢复入口）。T026 起操作替换为 IPC 调用。
-import { App, Button, Descriptions, Modal, Popconfirm, Tag } from 'antd';
-import {
-  CATEGORY_LABELS,
-} from '../../../../shared/constants/issues';
-import {
-  AUDIENCE_OPTIONS,
-  SOURCE_TYPE_OPTIONS,
-} from '../../../../shared/constants/scenes';
-import type { ExpressionRecord } from '../../../../shared/types/library';
-import { useExpressionStore } from './ExpressionStore';
+// T026：表达详情弹窗（真实数据：掌握状态修改 / 归档 / 删除由父页面经 IPC 执行）。
+// 注：nextReviewAt 由 T027 复习循环维护，此版本只展示、不提供编辑入口。
+import { Button, Modal, Popconfirm, Select, Space, Tag, Typography } from 'antd';
+import dayjs from 'dayjs';
+import { MASTERY_STATUS_LABELS } from '../../../../shared/types/library';
+import type {
+  ExpressionRecord,
+  ExpressionStatus,
+  MasteryStatus,
+} from '../../../../shared/types/library';
 
 export interface ExpressionDetailModalProps {
   open: boolean;
   record: ExpressionRecord | null;
+  /** 掌握状态修改 / 归档 飞行中 */
+  busy: boolean;
+  /** 删除飞行中 */
+  deleting: boolean;
   onClose: () => void;
-  onEdit: (record: ExpressionRecord) => void;
+  /** 修改掌握状态（父页面经 IPC 执行并刷新列表） */
+  onChangeMastery: (status: MasteryStatus) => void;
+  /** 归档 / 恢复 */
+  onToggleStatus: (status: ExpressionStatus) => void;
+  /** 永久删除（点击已带 Popconfirm 二次确认） */
+  onDelete: () => void;
 }
 
-function labelOf<T extends string>(
-  options: { value: T; label: string }[],
-  value: T | null | undefined,
-): string {
-  if (!value) return '—';
-  return options.find((o) => o.value === value)?.label ?? value;
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', padding: '6px 0', gap: 12 }}>
+      <div style={{ width: 96, color: 'rgba(0,0,0,0.45)', flexShrink: 0 }}>{label}</div>
+      <div style={{ flex: 1 }}>{children}</div>
+    </div>
+  );
 }
 
-export function ExpressionDetailModal({
+export default function ExpressionDetailModal({
   open,
   record,
+  busy,
+  deleting,
   onClose,
-  onEdit,
-}: ExpressionDetailModalProps) {
-  const { message } = App.useApp();
-  const archive = useExpressionStore((s) => s.archive);
-  const restore = useExpressionStore((s) => s.restore);
-  const archived = record?.status === 'archived';
+  onChangeMastery,
+  onToggleStatus,
+  onDelete,
+}: ExpressionDetailModalProps): React.ReactElement | null {
+  if (!record) return null;
 
   return (
     <Modal
-      title="表达详情"
       open={open}
+      title={record.title}
       onCancel={onClose}
-      width={640}
       footer={
-        record ? (
-          <>
-            <Popconfirm
-              title={archived ? '恢复这条表达？' : '归档这条表达？'}
-              description={
-                archived
-                  ? '恢复后它会重新出现在“使用中”列表。'
-                  : '归档后它不会再默认显示，也不会再用于生成复习任务。'
-              }
-              okText={archived ? '恢复' : '归档'}
-              cancelText="取消"
-              onConfirm={() => {
-                if (archived) {
-                  restore(record.id);
-                  message.success('已恢复');
-                } else {
-                  archive(record.id);
-                  message.success('已归档');
-                }
-                onClose();
-              }}
-            >
-              <Button danger={!archived}>
-                {archived ? '恢复使用' : '归档'}
-              </Button>
-            </Popconfirm>
-            <Button onClick={onClose}>关闭</Button>
-            <Button type="primary" onClick={() => onEdit(record)}>
-              编辑
+        <Space wrap>
+          <Popconfirm
+            title="永久删除这条表达？"
+            description="删除后不可恢复。如果只是暂时不想看，建议用「归档」。"
+            okText="确认删除"
+            okButtonProps={{ danger: true }}
+            cancelText="取消"
+            onConfirm={onDelete}
+            disabled={deleting || busy}
+          >
+            <Button danger loading={deleting}>
+              永久删除
             </Button>
-          </>
-        ) : null
+          </Popconfirm>
+          <Button
+            loading={busy}
+            onClick={() => onToggleStatus(record.status === 'active' ? 'archived' : 'active')}
+          >
+            {record.status === 'active' ? '归档' : '恢复'}
+          </Button>
+          <Button type="primary" onClick={onClose} disabled={busy || deleting}>
+            关闭
+          </Button>
+        </Space>
       }
+      width={560}
+      destroyOnHidden
     >
-      {record ? (
-        <Descriptions column={1} size="small" labelStyle={{ width: 90 }}>
-          <Descriptions.Item label="场景">
-            <Tag color="blue">{labelOf(SOURCE_TYPE_OPTIONS, record.scene)}</Tag>
-            <Tag>{labelOf(AUDIENCE_OPTIONS, record.audience)}</Tag>
-            {record.errorCategory ? (
-              <Tag color="orange">
-                {CATEGORY_LABELS[record.errorCategory]}
-              </Tag>
-            ) : null}
-          </Descriptions.Item>
-          <Descriptions.Item label="原始表达">
-            <span style={{ textDecoration: 'line-through', opacity: 0.75 }}>
-              {record.originalExpression}
-            </span>
-          </Descriptions.Item>
-          <Descriptions.Item label="推荐表达">
-            <strong>{record.correctedExpression}</strong>
-          </Descriptions.Item>
-          <Descriptions.Item label="要点说明">
-            {record.aiSummary ?? '—'}
-          </Descriptions.Item>
-          <Descriptions.Item label="掌握状态">
-            {record.masteryLevel === 'mastered' ? (
-              <Tag color="green">已掌握</Tag>
-            ) : (
-              <Tag color="orange">待复习</Tag>
-            )}
-          </Descriptions.Item>
-          <Descriptions.Item label="练习情况">
-            累计练习 {record.timesPracticed} 次
-            {record.lastPracticedAt ?
-              `，最近一次 ${record.lastPracticedAt}` :
-              '，尚未练习'}
-          </Descriptions.Item>
-          <Descriptions.Item label="添加日期">
-            {record.createdAt}
-          </Descriptions.Item>
-        </Descriptions>
-      ) : null}
+      <div style={{ marginBottom: 12 }}>
+        {record.status === 'archived' && (
+          <Tag color="orange" style={{ marginRight: 8 }}>
+            已归档
+          </Tag>
+        )}
+        <Tag color="blue">{MASTERY_STATUS_LABELS[record.masteryStatus]}</Tag>
+      </div>
+
+      <Row label="中文释义">
+        <Typography.Paragraph style={{ margin: 0 }}>{record.chineseMeaning || '—'}</Typography.Paragraph>
+      </Row>
+      {record.pattern && (
+        <Row label="固定搭配">
+          <Typography.Text>{record.pattern}</Typography.Text>
+        </Row>
+      )}
+      {record.example && (
+        <Row label="例句">
+          <Typography.Paragraph style={{ margin: 0 }}>{record.example}</Typography.Paragraph>
+        </Row>
+      )}
+      {record.scenario && (
+        <Row label="场景">
+          <Tag>{record.scenario}</Tag>
+        </Row>
+      )}
+      {record.notes && (
+        <Row label="备注">
+          <Typography.Paragraph style={{ margin: 0 }}>{record.notes}</Typography.Paragraph>
+        </Row>
+      )}
+      <Row label="掌握状态">
+        <Select
+          value={record.masteryStatus}
+          disabled={record.status === 'archived' || busy}
+          style={{ width: 200 }}
+          onChange={(v: MasteryStatus) => onChangeMastery(v)}
+          options={[
+            { value: 'new', label: '新学（刚加入）' },
+            { value: 'learning', label: '学习中' },
+            { value: 'familiar', label: '已熟悉（可降频）' },
+          ]}
+        />
+      </Row>
+      <Row label="下次复习">
+        {record.nextReviewAt ? (
+          <Typography.Text>{dayjs(record.nextReviewAt).format('YYYY-MM-DD')}</Typography.Text>
+        ) : (
+          <Typography.Text type="secondary">
+            未安排（由复习循环在 T027 自动维护）
+          </Typography.Text>
+        )}
+      </Row>
+      <Row label="创建时间">
+        <Typography.Text type="secondary">
+          {dayjs(record.createdAt).format('YYYY-MM-DD HH:mm')}
+        </Typography.Text>
+      </Row>
+      {record.updatedAt && (
+        <Row label="更新时间">
+          <Typography.Text type="secondary">
+            {dayjs(record.updatedAt).format('YYYY-MM-DD HH:mm')}
+          </Typography.Text>
+        </Row>
+      )}
     </Modal>
   );
 }

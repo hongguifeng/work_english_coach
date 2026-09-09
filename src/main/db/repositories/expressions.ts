@@ -92,6 +92,28 @@ export class ExpressionRepository {
     return toResult(() => this.db.select().from(expressions).where(eq(expressions.id, id)).get() ?? null);
   }
 
+  /** 全部表达（含归档），按创建时间倒序（T026：列表由页面侧筛选）。 */
+  listAll(): Result<ExpressionRow[]> {
+    return toResult(() =>
+      this.db.select().from(expressions).orderBy(desc(expressions.createdAt)).all(),
+    );
+  }
+
+  /** 永久删除（不可恢复）。返回是否实际删除了一行（id 不存在 → false）。
+   *  先 SELECT 确认存在再 DELETE（SqlDb 接口对 run() 返回类型较松，避免依赖其具体形状）。 */
+  delete(id: string): Result<boolean> {
+    return toResult(() => {
+      const found = this.db
+        .select({ id: expressions.id })
+        .from(expressions)
+        .where(eq(expressions.id, id))
+        .limit(1)
+        .all();
+      this.db.delete(expressions).where(eq(expressions.id, id)).run();
+      return found.length > 0;
+    });
+  }
+
   setMasteryStatus(id: string, masteryStatus: MasteryStatus): Result<ExpressionRow> {
     return this.update(id, { masteryStatus });
   }

@@ -8,8 +8,9 @@
 //   写入前也必须通过 AI 契约 Schema；非法 → validation 错误，不写库）。
 // - 返回统一 Result<SaveCorrectionSummary>；异常经 classifyError 归类，不向 UI 抛裸异常。
 // - 日志只记录 sampleId / 条数等元信息，不记录完整工作文本（避免敏感内容进日志）。
-// - 不做 data:changed 广播：该事件目前语义为「清空全部数据」（表达库仍是 mock 数据，
-//   广播会误清空列表）。T026 起表达库接真实 DB 时再引入跨页刷新。
+// - 不做 data:changed 广播：该事件语义为「清空全部数据」（设置页删除后广播，
+//   T026 后表达库页面也监听它重新拉取）；保存成功后的列表刷新由页面自身完成，
+//   不升级为全局广播。
 import { ipcMain } from 'electron';
 import { z } from 'zod';
 import { err } from '../../shared/types/app';
