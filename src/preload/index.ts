@@ -21,6 +21,7 @@ import type {
   TodayReviewView,
 } from '../shared/types/review';
 import type { StudyStatsView } from '../shared/types/studyStats';
+import type { RecordingSavedView } from '../shared/types/recording';
 
 /**
  * Preload 入口（T004 / T005 / T012 / T017）
@@ -85,6 +86,11 @@ const desktopApi: DesktopApi = {
   reviewSkipTask: (payload: { taskId: string }) => invoke<{ taskId: string }>('review:skip-task', payload),
   // T033：基础学习统计（纯 DB 查询，无 AI）。
   studyStats: () => invoke<StudyStatsView>('stats:study'),
+  // T034：录音（临时目录，启动时清理 7 天前的文件；不默认永久保存）。
+  saveRecording: (data: ArrayBuffer, mimeType: string) =>
+    invoke<RecordingSavedView>('rec:save', { data, mimeType }),
+  deleteRecording: (id: string) => invoke<null>('rec:delete', { id }),
+  listRecordings: () => invoke<RecordingSavedView[]>('rec:list'),
   onDataChanged: (cb) => {
     const listener = (
       _e: IpcRendererEvent,

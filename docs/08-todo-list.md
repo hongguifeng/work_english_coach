@@ -928,20 +928,28 @@ npm run db:migrate
 
 ## T034：设计录音能力
 
-- [ ] 设计录音页面或组件。
-- [ ] 获取麦克风权限。
-- [ ] 显示权限状态。
-- [ ] 显示录音时长。
-- [ ] 支持开始录音。
-- [ ] 支持停止录音。
-- [ ] 支持删除录音。
-- [ ] 不默认永久保存音频。
+- [x] 设计录音页面或组件。
+- [x] 获取麦克风权限。
+- [x] 显示权限状态。
+- [x] 显示录音时长。
+- [x] 支持开始录音。
+- [x] 支持停止录音。
+- [x] 支持删除录音。
+- [x] 不默认永久保存音频。
 
 验收标准：
 
 - Windows 下可以正常录音。
 - 用户拒绝权限时有清晰提示。
 - 录音失败不会导致应用崩溃。
+
+实现说明（本次提交）：
+
+- 新增 `/record` 录音页（RecordingPage）：挂载时探测麦克风权限（getUserMedia 后立即停止，权限状态 granted/denied/unavailable + 明确提示与重试）；实时计时（MM:SS）；开始/停止（MediaRecorder，audio/webm）；录音列表（大小/类型/时间）+ 删除。
+- 权限处理（Electron 安全要求）：`session.defaultSession.setPermissionRequestHandler` 只自动允许 `media`（麦克风），其余权限拒绝；无 OS 弹框（单用户本地工具）。
+- 不默认永久保存：落盘需用户勾选“保存到磁盘”；文件存于临时录音目录（userData/work-english-coach/recordings，UUID 文件名，.webm），启动时自动清理超过 7 天的文件（cleanupStaleRecordings）；未勾选时录音仅保留在当前会话内存（供 T035 转写）。
+- 最小化 IPC：`rec:save`（ArrayBuffer→主进程写文件）、`rec:delete`（UUID 校验后删文件）、`rec:list`（目录列表）；renderer 不直接碰 fs。
+- 失败场景均优雅处理：权限拒绝/无媒体设备/录音中出错/落盘失败（降级仅内存）/删除失败，不崩溃。
 
 ---
 

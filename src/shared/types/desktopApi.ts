@@ -17,6 +17,7 @@ import type {
   TodayReviewView,
 } from './review';
 import type { StudyStatsView } from './studyStats';
+import type { RecordingSavedView } from './recording';
 
 /**
  * Preload 暴露给渲染进程的最小 API 接口（T012）
@@ -114,6 +115,16 @@ export interface DesktopApi {
    * 基于 review_attempts；AI 自动修改不算掌握，不生成等级分数。
    */
   studyStats(): Promise<Result<StudyStatsView>>;
+
+  /**
+   * T034：保存录音到临时目录（默认不永久保存；启动时自动清理 7 天前的文件）。
+   * data 来自 MediaRecorder Blob（ArrayBuffer，结构化克隆安全）。
+   */
+  saveRecording(data: ArrayBuffer, mimeType: string): Promise<Result<RecordingSavedView>>;
+  /** T034：删除录音（UUID id；不存在时幂等成功）。 */
+  deleteRecording(id: string): Promise<Result<null>>;
+  /** T034：列出临时目录中的录音（时间倒序）。 */
+  listRecordings(): Promise<Result<RecordingSavedView[]>>;
   /**
    * 订阅主进程的数据变更广播（目前触发点：删除全部数据）。
    * 返回取消订阅函数（用于 React useEffect 清理）（T017）。

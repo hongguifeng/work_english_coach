@@ -3,6 +3,7 @@ import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import {
   AlertOutlined,
   AppstoreOutlined,
+  AudioOutlined,
   BarChartOutlined,
   BookOutlined,
   CompassOutlined,
@@ -14,6 +15,7 @@ import TrainingPage from './pages/TrainingPage';
 import LibraryPage from './pages/LibraryPage';
 import ErrorArchivePage from './pages/ErrorArchivePage';
 import StatisticsPage from './pages/StatisticsPage';
+import RecordingPage from './pages/RecordingPage';
 import SettingsPage from './pages/SettingsPage';
 
 const { Sider, Header, Content } = Layout;
@@ -25,6 +27,7 @@ const NAV_ITEMS = [
   { key: '/expressions', icon: <BookOutlined />, title: '表达库' },
   { key: '/errors', icon: <AlertOutlined />, title: '错误档案' },
   { key: '/stats', icon: <BarChartOutlined />, title: '学习统计' },
+  { key: '/record', icon: <AudioOutlined />, title: '录音' },
   { key: '/settings', icon: <SettingOutlined />, title: '设置' },
 ] as const;
 
@@ -99,6 +102,7 @@ export default function App() {
               <Route path="/expressions" element={<LibraryPage />} />
               <Route path="/errors" element={<ErrorArchivePage />} />
               <Route path="/stats" element={<StatisticsPage />} />
+              <Route path="/record" element={<RecordingPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

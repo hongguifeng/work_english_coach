@@ -1,4 +1,4 @@
-import { app, dialog, shell } from 'electron';
+import { app, dialog, session, shell } from 'electron';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { closeDatabase, getDatabase, getDbFile, initDatabase } from './db/database';
@@ -16,6 +16,8 @@ import { registerReviewTaskIpc } from './ipc/reviewTaskHandlers';
 import { registerResultIpc } from './ipc/resultHandlers';
 import { registerStatsIpc } from './ipc/statsHandlers';
 import { registerSecretIpc } from './ipc/secretHandlers';
+import { registerRecordingIpc } from './ipc/recordingHandlers';
+import { cleanupStaleRecordings } from './services/recordingStore';
 import { devLog } from './log';
 
 // 显式固定应用名（未打包/探针场景下 Electron 会回退为 "Electron"，
@@ -130,6 +132,18 @@ if (!gotTheLock) {
       return;
     }
     bootDatabase();
+    // T034：麦克风权限 —— 本应用只需要 media（麦克风），其余权限一律拒绝。
+    // 不弹 OS 级确认框（单用户本地工具）；拒绝时渲染进程显示明确提示。
+    session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+      callback(permission === 'media');
+    });
+    // T034：清理超过 7 天的录音文件（不默认永久保存）。
+    try {
+      const r = cleanupStaleRecordings();
+      if (r.ok && r.data > 0) devLog(`rec:cleanup removed ${r.data} stale files`);
+    } catch (e) {
+      devLog('rec:cleanup fail:', e instanceof Error ? e.message : String(e));
+    }
     registerAppIpc();
     registerAiAnalysisIpc();
     registerAiConfigIpc();
@@ -141,6 +155,7 @@ if (!gotTheLock) {
     registerResultIpc();
     registerStatsIpc();
     registerSecretIpc();
+    registerRecordingIpc();
     mainWindow = createMainWindow();
   });
 }
