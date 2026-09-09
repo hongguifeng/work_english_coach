@@ -4,6 +4,7 @@ import { invoke } from './api';
 import type { DesktopApi } from '../shared/types/desktopApi';
 import type { DataChangedEvent } from '../shared/types/data';
 import type { Result } from '../shared/types/app';
+import type { AiSettings } from '../shared/types/settings';
 
 /**
  * Preload 入口（T004 / T005 / T012 / T017）
@@ -30,6 +31,9 @@ const desktopApi: DesktopApi = {
   secretSet: (key: string) => invoke<void>('secret:set', key),
   secretClear: () => invoke<void>('secret:clear'),
   secretIsConfigured: () => invoke<boolean>('secret:is-configured'),
+  // T019：AI 非密钥配置持久化到 SQLite settings 表（绝不含 API Key）。
+  aiConfigGet: () => invoke<AiSettings>('aiConfig:get'),
+  aiConfigSave: (settings: AiSettings) => invoke<AiSettings>('aiConfig:save', settings),
   onDataChanged: (cb) => {
     const listener = (
       _e: IpcRendererEvent,

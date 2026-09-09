@@ -1,5 +1,6 @@
-// 设置页（T011 骨架 / T017 数据管理 / T018 API Key 凭据存储）
-// - AI 服务非密钥设置：Zod 校验后存到页内 Zustand（T011 mock；T019 切换 IPC + SQLite settings 表）
+// 设置页（T011 骨架 / T017 数据管理 / T018 API Key 凭据存储 / T019 AI 配置持久化）
+// - AI 服务非密钥设置：Zod 校验后经 IPC 持久化到 SQLite settings 表（T019）；
+//   挂载时从主进程回填，保存按钮带 loading。
 // - API Key：独立卡片，走系统凭据存储（keytar/DPAPI，T018）。
 //   * 只展示“是否已配置”，绝不显示完整 Key；保存后清空输入框，不在 UI 残留原文
 // - 测试连接：mock（T021 接入真实调用）
@@ -52,6 +53,7 @@ export default function SettingsPage() {
   const [test, setTest] = useState<TestResult>({ kind: 'idle' });
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // API Key（T018）：原文只在输入框短暂存在，保存后清空；这里只跟踪“是否已配置”
   const [keyInput, setKeyInput] = useState('');
@@ -71,6 +73,27 @@ export default function SettingsPage() {
       active = false;
     };
   }, []);
+
+  // T019：挂载时从 SQLite（经主进程）回填已持久化的 AI 配置（缺失/损坏 → 主进程给默认值）。
+  useEffect(() => {
+    let active = true;
+    window.desktopAPI.aiConfigGet().then((r) => {
+      if (!active) return;
+      if (r.ok) {
+        form.setFieldsValue({
+          baseUrl: r.data.baseUrl,
+          model: r.data.model,
+          timeoutSeconds: r.data.timeoutSeconds,
+          saveOriginal: r.data.saveOriginal,
+          redactEnabled: r.data.redactEnabled,
+        });
+        set(r.data); // 同步会话态（供测试连接等读取）
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [form, set]);
 
   const handleSaveKey = async () => {
     const k = keyInput.trim();
@@ -106,7 +129,7 @@ export default function SettingsPage() {
     message.success('API Key 已清除');
   };
 
-  const handleSave = (values: {
+  const handleSave = async (values: {
     baseUrl: string;
     model: string;
     timeoutSeconds: number;
@@ -124,8 +147,15 @@ export default function SettingsPage() {
       message.error(`保存失败：${result.error.issues[0]?.message ?? '输入不合法'}`);
       return;
     }
-    set(result.data as AiSettings);
-    message.success('保存成功（API Key 独立保存在系统凭据存储，不在本设置项内）');
+    setSaving(true);
+    const r = await window.desktopAPI.aiConfigSave(result.data as AiSettings);
+    setSaving(false);
+    if (!r.ok) {
+      message.error(r.error.message);
+      return;
+    }
+    set(r.data); // 同步会话态
+    message.success('保存成功（设置已持久化到本地数据库；API Key 独立保存在系统凭据存储）');
   };
 
   const handleTest = async () => {
@@ -152,7 +182,7 @@ export default function SettingsPage() {
     <div style={{ maxWidth: 720 }}>
       <PageHeader
         title="设置"
-        description="AI 服务与数据管理。API Key 由系统凭据存储保管（T018）；AI 配置与测试连接将在 T019/T021 接入真实存储与调用。"
+        description="AI 服务与数据管理。API Key 由系统凭据存储保管（T018）；AI 配置持久化到本地数据库（T019），测试连接将在 T021 接入真实调用。"
       />
 
       <Card>
@@ -296,7 +326,7 @@ export default function SettingsPage() {
           </div>
 
           <Divider />
-          <Button type="primary" htmlType="submit">
+          <Button type="primary" htmlType="submit" loading={saving}>
             保存设置
           </Button>
         </Form>

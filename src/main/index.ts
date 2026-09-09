@@ -6,6 +6,7 @@ import { runMigrations } from './db/migrations';
 
 import { createMainWindow } from './windows/createMainWindow';
 import { registerAppIpc } from './ipc/appHandlers';
+import { registerAiConfigIpc } from './ipc/aiConfigHandlers';
 import { registerDataIpc } from './ipc/dataHandlers';
 import { registerSecretIpc } from './ipc/secretHandlers';
 import { devLog } from './log';
@@ -115,6 +116,7 @@ if (!gotTheLock) {
     }
     bootDatabase();
     registerAppIpc();
+    registerAiConfigIpc();
     registerDataIpc();
     registerSecretIpc();
     mainWindow = createMainWindow();

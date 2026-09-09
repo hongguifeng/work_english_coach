@@ -1,4 +1,5 @@
 import type { Result } from './app';
+import type { AiSettings } from './settings';
 import type { DataChangedEvent, DeleteSummary, ExportResult } from './data';
 
 /**
@@ -34,6 +35,10 @@ export interface DesktopApi {
   secretClear(): Promise<Result<void>>;
   /** 查询是否已配置 API Key（只返回布尔，绝不返回 Key 原文）（T018）。 */
   secretIsConfigured(): Promise<Result<boolean>>;
+  /** 读取已持久化的 AI 非密钥配置（缺失/损坏 → 默认值；绝不含 API Key）（T019）。 */
+  aiConfigGet(): Promise<Result<AiSettings>>;
+  /** 校验并持久化 AI 非密钥配置（非法输入 → validation 错误；绝不含 API Key）（T019）。 */
+  aiConfigSave(settings: AiSettings): Promise<Result<AiSettings>>;
   /**
    * 订阅主进程的数据变更广播（目前触发点：删除全部数据）。
    * 返回取消订阅函数（用于 React useEffect 清理）（T017）。

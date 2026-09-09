@@ -563,19 +563,29 @@ npm run db:migrate
 
 ---
 
-## T019：实现 AI 配置服务
+## T019：实现 AI 配置服务 ✅ 完成（2026-07-25）
 
-- [ ] 实现 Base URL 保存。
-- [ ] 实现模型名称保存。
-- [ ] 实现超时时间保存。
-- [ ] 实现请求前读取安全存储中的 API Key。
-- [ ] 配置默认值。
-- [ ] 对 Base URL 和超时时间进行校验。
+- [x] 实现 Base URL 保存。
+- [x] 实现模型名称保存。
+- [x] 实现超时时间保存。
+- [x] 实现请求前读取安全存储中的 API Key。
+- [x] 配置默认值。
+- [x] 对 Base URL 和超时时间进行校验。
 
-验收标准：
+### 实现说明
 
-- 关闭并重新打开应用后配置仍存在。
-- API Key 不会通过普通设置接口返回到 Renderer。
+- `src/main/services/aiConfigService.ts`（electron-free，可单测）：以 `settings` 表的单行 `aiSettings`（JSON）持久化**非敏感** `AiSettings{baseUrl,model,timeoutSeconds,saveOriginal,redactEnabled}`；`loadAiConfig(repo)` 行缺失/JSON 损坏/字段非法时安全回退 `DEFAULT_AI_SETTINGS`（不抛异常）；`saveAiConfig(repo,input)` 先经 `AiSettingsSchema.safeParse` 校验，通过才 upsert，非法输入返回 `code:'validation'`（含 zod 明细）；`buildAiRequestConfig(repo,backend)`（main 内部，供 T020）合并配置 + `readApiKey(backend)`，无 Key 时返回 `code:'config'` 提示先在设置页配置。
+- IPC（`aiConfigHandlers.ts`）：`aiConfig:get`→`Result<AiSettings>`、`aiConfig:save`→`Result<AiSettings>`；**两者返回体均不含 `apiKey`**，日志只记 `model/baseUrl/timeout`。
+- preload（`index.ts`）：`aiConfigGet()`/`aiConfigSave(settings)`，经 `contextBridge.exposeInMainWorld` 最小化暴露，不暴露 `ipcRenderer`。
+- Settings UI：移除 zustand `persist`（不再写 localStorage，避免双写），挂载时经 `aiConfigGet()` 水合表单（`form.setFieldsValue`），保存经 `aiConfigSave()`（带 loading 态与成功/错误提示）；`SettingsStore` 改为瞬态表单态。
+- 校验：`baseUrl` 必须为 `http(s)://`；`timeoutSeconds` 整数 1..300；`model` 非空。
+
+### 验收结果
+
+- 单测：`tests/aiConfigService.test.ts` **11 例全过**（默认回退：无行/JSON 损坏/字段非法；往返持久化；非法输入 baseUrl/timeout/非对象→`validation`；`buildAiRequestConfig` 有 Key 组装完整请求配置 / 无 Key→`config` / 后端抛错→`storage`）。全量 **74/74**（39 repositories + 5 reviewSchedule + 4 dataService + 15 secretService + 11 aiConfigService）；`tsc`（node+web）与 ESLint 无错误；`npm run build` 成功；`node scripts/smoke.mjs` 通过（app 启动、窗口加载、干净退出）。
+- E2E（真实桌面应用）：`env -u ELECTRON_RUN_AS_NODE node scripts/dev.mjs -- --remote-debugging-port=9222` → agent-browser 经 CDP → 导航「设置」→表单水合为默认值（`baseUrl=http://127.0.0.1:12346/v1`,`model=qwen3.8-27b`,`timeout=60`）→把 `model` 改为 `t019-e2e-model-xyz`→点「保存设置」→提示「保存成功（设置已持久化到本地数据库；API Key 独立保存在系统凭据存储）」→`node:sqlite` 只读复核真实 DB：`settings.aiSettings` 值含且仅含 5 个非敏感字段、`model=t019-e2e-model-xyz`、**不含 `apiKey`/`sk-`**，dev 日志仅 `aiConfig:save ok (model=…, baseUrl=…, timeout=60s, …)` 无 Key→**关闭并重启应用**→再次导航「设置」→表单水合为 `model=t019-e2e-model-xyz`（重启后仍在）→关闭。
+- 验收标准达成：✅ 关闭重开后配置仍在；✅ API Key 不经普通设置接口回传 Renderer（`aiConfig:get`/`aiConfig:save` 返回体与 DB 行均无 Key）。
+- 说明：`buildAiRequestConfig` 供 T020 AI 客户端调用；「测试连接」按钮（真实 `/v1/models`/最小 chat）属 T021。
 
 ---
 
