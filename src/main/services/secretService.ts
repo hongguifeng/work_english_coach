@@ -9,6 +9,7 @@
 import { err, ok } from '../../shared/types/app';
 import type { Result } from '../../shared/types/app';
 import { classifyError } from '../db/errors';
+import { createKeytarBackend } from './secretBackend';
 import type { SecretBackend } from './secretBackend';
 
 /** keytar 命名空间（应用名）。 */
@@ -81,4 +82,19 @@ export async function isApiKeyConfigured(backend: SecretBackend): Promise<boolea
   } catch {
     return false;
   }
+}
+
+/**
+ * 进程内共享的 Keytar 后端（懒加载单例）。
+ * 供 secretHandlers（IPC）与 aiAnalysisService（读 AI Key）复用同一实例，
+ * 避免重复初始化。keytar 是 Electron native 模块，仅 Main 进程可用；
+ * 纯 Node 单测不会调用它。
+ */
+let sharedBackend: SecretBackend | null = null;
+
+export function getSharedSecretBackend(): SecretBackend {
+  if (sharedBackend === null) {
+    sharedBackend = createKeytarBackend(SECRET_SERVICE);
+  }
+  return sharedBackend;
 }

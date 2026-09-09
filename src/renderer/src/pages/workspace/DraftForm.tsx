@@ -142,7 +142,7 @@ export function DraftForm({ loading, onSubmit }: DraftFormProps) {
         loading={loading}
         disabled={loading}
       >
-        {loading ? 'AI 检查中…（mock）' : '检查'}
+        {loading ? 'AI 检查中…' : '检查'}
       </Button>
     </Form>
   );

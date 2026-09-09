@@ -10,6 +10,7 @@ export type ErrorCode =
   | 'validation'
   | 'network'
   | 'timeout'
+  | 'canceled'
   | 'parse'
   | 'storage'
   | 'config'

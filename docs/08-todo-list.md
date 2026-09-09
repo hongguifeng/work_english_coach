@@ -648,12 +648,23 @@ npm run db:migrate
 
 ## T022：实现纠错输入 IPC
 
-- [ ] 定义 AnalyzeDraftInput。
-- [ ] 使用 Zod 校验输入。
-- [ ] 实现 `ai:analyze-draft` IPC。
-- [ ] 限制英文输入最大长度。
-- [ ] 处理空输入。
-- [ ] 处理请求取消或超时。
+- [x] 定义 AnalyzeDraftInput。
+- [x] 使用 Zod 校验输入。
+- [x] 实现 `ai:analyze-draft` IPC。
+- [x] 限制英文输入最大长度。
+- [x] 处理空输入。
+- [x] 处理请求取消或超时。
+
+完成说明（2026-07-25）：
+
+- 输入 Schema：`aiSchemas.ts` 新增 `analyzeDraftInputSchema`（`z.object`）与 `parseAnalyzeDraftInput`：校验 sourceType/audience/tone 枚举、originalChinese/originalEnglish 非空、英文 ≤ 4000 字符、extraInstruction ≤ 1000 字符；非法输入在 main 侧即被拒（不发往 AI）。
+- 服务 `aiAnalysisService.ts`：`analyzeDraft(input, requestId, deps)` 依赖注入（settingsRepo/secretBackend/aiClient），主进程内部可测；流程=校验输入→`buildAiRequestConfig`（DB 配置 + keytar 取 key）→`AiClient.chat(messages, signal)`→`parseDraftAnalysis`，全程用统一 `Result`（非法输入→validation、未配置 key→config、超时→timeout、解析失败→parse，信息不含 key）。
+- 取消/超时：`AiClient.chat` 新增可选 `AbortSignal`；`OpenAICompatibleClient` 用单一 `AbortController` 串联「外部取消信号」与「超时计时器」，谁先触发记为 abortedBy（abort→timeout / 用户取消→canceled），并用 `fetch` 的 `AbortSignal` 真正中断 socket；`ai:analyze-draft-cancel` 按 requestId 中止（`activeRequests` Map）。
+- IPC `aiAnalysisHandlers.ts`：注册 `ai:analyze-draft`（invoke）与 `ai:analyze-draft-cancel`（fire-and-forget），在 `main/index.ts` 装配真实依赖（getSharedSecretBackend + OpenAICompatibleClient）；`ErrorCode` 新增 `canceled`。
+- Renderer：WorkspacePage 用 `crypto.randomUUID()` 生成 requestId 调 `desktopAPI.aiAnalyzeDraft`；`AnalysisResultCard` 支持 loading（Spin + 「AI 检查中」 + 取消按钮）/ error（Alert + 重试按钮，`humanMessage` 把 validation/config/timeout/canceled/parse 译成中文）/ result 三态；`DraftForm` 检查按钮带 loading；取消走 `aiAnalyzeDraftCancel`。
+- 修复 prompt/schema 枚举漂移：`buildPrompt` 的 severity/category 清单改为从 `ISSUE_SEVERITIES`/`ISSUE_CATEGORIES` 常量派生（原硬编码含不存在的 `warning`）。
+- 测试：`tests/aiAnalysisService.test.ts` 9 例（成功/非法输入/未配置 key/超时/解析失败/取消 requestId true+false），`tests/aiClient.test.ts` 补 3 例（abort 中断/超时映射/普通请求不带 signal）；共 119/119 通过。
+- 真实联调（gpt-5.5）：`analyzeDraft` 端到端返回合法 issue（tense/clarity/tone/plural/collocation/article，severity 含 error/unclear/tone_risk/suggestion）、minimalRevision/naturalRevision、keyLearningPoint、practice；CDP 驱动运行中的 App 走完整 IPC 往返（配置保存→设 key→分析→还原）PASS；smoke/类型检查/lint/构建全绿。
 
 验收标准：
 

@@ -30,7 +30,18 @@ export interface ChatMessage {
  * 后续由 T021 的 Zod Schema 解析成结构化结果）；失败为统一 AppError。
  */
 export interface AiClient {
-  chat(config: AiRequestConfig, messages: readonly ChatMessage[]): Promise<Result<string>>;
+  /**
+   * 发送一次 chat completion 请求。
+   * @param signal 可选的外部中止信号（例如用户取消）。
+   *   - 未传：内部超时 → `timeout`。
+   *   - 传入且在超时前 abort → `canceled`（区分于超时，便于 UI 静默处理）。
+   *   - 传入且在超时后 abort → 仍是 `timeout`（以先发生者为准）。
+   */
+  chat(
+    config: AiRequestConfig,
+    messages: readonly ChatMessage[],
+    signal?: AbortSignal
+  ): Promise<Result<string>>;
 }
 
 /** 可注入的 fetch 实现（默认 globalThis.fetch），便于测试替身。 */
@@ -64,14 +75,36 @@ export class OpenAICompatibleClient implements AiClient {
     this.fetchImpl = opts.fetchImpl ?? globalThis.fetch;
   }
 
-  async chat(config: AiRequestConfig, messages: readonly ChatMessage[]): Promise<Result<string>> {
+  async chat(
+    config: AiRequestConfig,
+    messages: readonly ChatMessage[],
+    signal?: AbortSignal
+  ): Promise<Result<string>> {
     // 入参基础校验：model / baseUrl 非空、messages 非空
     if (!config.baseUrl || !config.model || messages.length === 0) {
       return err('validation', 'AI 请求参数不完整（baseUrl / model / messages）');
     }
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), config.timeoutMs);
+    // 记录“是谁先触发了中止”：内部超时 或 外部取消，以先发生者为准。
+    // （不用 AbortSignal.any，便于区分 timeout 与 canceled。）
+    let abortedBy: 'timeout' | 'canceled' | null = null;
+    const onTimeout = (): void => {
+      abortedBy = abortedBy ?? 'timeout';
+      controller.abort();
+    };
+    const timer = setTimeout(onTimeout, config.timeoutMs);
+    const onExternalAbort = (): void => {
+      abortedBy = abortedBy ?? 'canceled';
+      controller.abort();
+    };
+    if (signal) {
+      if (signal.aborted) {
+        onExternalAbort();
+      } else {
+        signal.addEventListener('abort', onExternalAbort, { once: true });
+      }
+    }
     try {
       const res = await this.fetchImpl(buildUrl(config.baseUrl), {
         method: 'POST',
@@ -108,7 +141,10 @@ export class OpenAICompatibleClient implements AiClient {
       }
       return ok(content);
     } catch (e) {
-      if (isAbortError(e)) {
+      if (abortedBy === 'canceled') {
+        return err('canceled', 'AI 请求已取消');
+      }
+      if (abortedBy === 'timeout' || isAbortError(e)) {
         return err('timeout', `AI 请求超时（${config.timeoutMs}ms），请稍后重试或调大超时`);
       }
       // fetch 网络错误（undici 抛 TypeError: fetch failed / 连接失败等）
@@ -116,6 +152,7 @@ export class OpenAICompatibleClient implements AiClient {
       return err('network', 'AI 网络请求失败，请检查网络或 Base URL', raw);
     } finally {
       clearTimeout(timer);
+      if (signal) signal.removeEventListener('abort', onExternalAbort);
     }
   }
 }

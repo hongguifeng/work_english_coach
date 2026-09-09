@@ -1,6 +1,7 @@
 import type { Result } from './app';
 import type { AiSettings } from './settings';
 import type { DataChangedEvent, DeleteSummary, ExportResult } from './data';
+import type { AnalyzeDraftInput, AnalyzeDraftResult } from './ai';
 
 /**
  * Preload 暴露给渲染进程的最小 API 接口（T012）
@@ -39,6 +40,14 @@ export interface DesktopApi {
   aiConfigGet(): Promise<Result<AiSettings>>;
   /** 校验并持久化 AI 非密钥配置（非法输入 → validation 错误；绝不含 API Key）（T019）。 */
   aiConfigSave(settings: AiSettings): Promise<Result<AiSettings>>;
+  /**
+   * 提交草稿进行 AI 检查，返回结构化纠错结果（AnalyzeDraftResult）。
+   * 非法输入 → validation；未配 Key → config；超时 → timeout；
+   * 用户取消 → canceled；网络故障 → network；AI 返回非法结构 → parse（T022）。
+   */
+  aiAnalyzeDraft(input: AnalyzeDraftInput, requestId: string): Promise<Result<AnalyzeDraftResult>>;
+  /** 取消一个进行中的草稿检查请求（按 requestId）；返回是否命中并中止（T022）。 */
+  aiAnalyzeDraftCancel(requestId: string): Promise<Result<boolean>>;
   /**
    * 订阅主进程的数据变更广播（目前触发点：删除全部数据）。
    * 返回取消订阅函数（用于 React useEffect 清理）（T017）。

@@ -53,17 +53,26 @@ function IssueRow({ issue }: { issue: AnalysisIssue }) {
 interface AnalysisResultCardProps {
   loading: boolean;
   result: AnalyzeDraftResult | null;
+  /** 失败/取消时的用户可读信息（T022）。 */
+  error?: string | null;
   onConfirm: () => void;
+  /** 取消进行中的检查（T022）。 */
+  onCancel?: () => void;
+  /** 重试上次检查（T022）。 */
+  onRetry?: () => void;
   confirmHint?: string;
 }
 
 /**
- * 工作区结果区：最小修改版 + 自然表达版 + 问题列表 + 学习点/练习预览（T008）
+ * 工作区结果区：最小修改版 + 自然表达版 + 问题列表 + 学习点/练习预览（T008/T022）
  */
 export function AnalysisResultCard({
   loading,
   result,
+  error,
   onConfirm,
+  onCancel,
+  onRetry,
   confirmHint,
 }: AnalysisResultCardProps) {
   if (loading) {
@@ -72,9 +81,33 @@ export function AnalysisResultCard({
         <div className="wec-loading-block">
           <Spin />
           <Typography.Text type="secondary">
-            正在分析你的英文草稿（mock，约 1 秒）
+            正在分析你的英文草稿，请稍候（约 30–60 秒）
           </Typography.Text>
         </div>
+        {onCancel ? (
+          <div style={{ textAlign: 'center', marginTop: 12 }}>
+            <Button onClick={onCancel}>取消</Button>
+          </div>
+        ) : null}
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <Alert
+          type="error"
+          showIcon
+          message={error}
+          action={
+            onRetry ? (
+              <Button type="primary" size="small" onClick={onRetry}>
+                重试
+              </Button>
+            ) : null
+          }
+        />
       </Card>
     );
   }
@@ -89,7 +122,7 @@ export function AnalysisResultCard({
 
   return (
     <Card
-      title="检查结果（mock 数据）"
+      title="检查结果"
       extra={
         <Button
           type="primary"

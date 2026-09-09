@@ -5,6 +5,7 @@ import { closeDatabase, getDatabase, getDbFile, initDatabase } from './db/databa
 import { runMigrations } from './db/migrations';
 
 import { createMainWindow } from './windows/createMainWindow';
+import { registerAiAnalysisIpc } from './ipc/aiAnalysisHandlers';
 import { registerAppIpc } from './ipc/appHandlers';
 import { registerAiConfigIpc } from './ipc/aiConfigHandlers';
 import { registerDataIpc } from './ipc/dataHandlers';
@@ -116,6 +117,7 @@ if (!gotTheLock) {
     }
     bootDatabase();
     registerAppIpc();
+    registerAiAnalysisIpc();
     registerAiConfigIpc();
     registerDataIpc();
     registerSecretIpc();

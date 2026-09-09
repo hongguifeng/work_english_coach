@@ -42,6 +42,17 @@ function mockFetchOnce(behavior: () => Promise<unknown>): typeof fetch {
   }) as unknown as typeof fetch;
 }
 
+// 模拟“带 AbortSignal 的 fetch”：signal 已中止 → 立即 reject(AbortError)；否则挂起直到 signal 中止（T022）。
+function mockFetchRespectAbort(): typeof fetch {
+  return (async (_input: string | URL, init?: RequestInit) => {
+    const s = init?.signal;
+    if (s && s.aborted) return Promise.reject(abortError());
+    return new Promise<Response>((_resolve, reject) => {
+      s?.addEventListener('abort', () => reject(abortError()), { once: true });
+    });
+  }) as unknown as typeof fetch;
+}
+
 describe('OpenAICompatibleClient', () => {
   beforeEach(() => {
     lastInit = undefined;
@@ -161,6 +172,35 @@ describe('OpenAICompatibleClient', () => {
     const res = await client.chat(CONFIG, []);
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.error.code).toBe('validation');
+  });
+
+  it('T022: maps external abort (signal) to code=canceled', async () => {
+    const ac = new AbortController();
+    const client = new OpenAICompatibleClient({ fetchImpl: mockFetchRespectAbort() });
+    const p = client.chat(CONFIG, MESSAGES, ac.signal);
+    setTimeout(() => ac.abort(), 20);
+    const res = await p;
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error.code).toBe('canceled');
+  });
+
+  it('T022: maps internal timeout (timeoutMs, no external signal) to code=timeout', async () => {
+    const client = new OpenAICompatibleClient({ fetchImpl: mockFetchRespectAbort() });
+    const res = await client.chat({ ...CONFIG, timeoutMs: 30 }, MESSAGES);
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error.code).toBe('timeout');
+      expect(res.error.message).toMatch(/超时/);
+    }
+  });
+
+  it('T022: maps a pre-aborted signal to code=canceled', async () => {
+    const ac = new AbortController();
+    ac.abort();
+    const client = new OpenAICompatibleClient({ fetchImpl: mockFetchRespectAbort() });
+    const res = await client.chat(CONFIG, MESSAGES, ac.signal);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error.code).toBe('canceled');
   });
 });
 

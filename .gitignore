@@ -7,3 +7,9 @@ npm-install.log
 .DS_Store
 Thumbs.db
 *.tsbuildinfo
+
+# local debug / ad-hoc E2E scratch (never committed)
+tmp-*.mjs
+tmp-*.cjs
+*.tmp.test.ts
+*.tmp.test.mjs

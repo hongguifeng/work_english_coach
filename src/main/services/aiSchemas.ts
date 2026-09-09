@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { err, ok } from '../../shared/types/app';
 import type { Result } from '../../shared/types/app';
 import type {
+  AnalyzeDraftInput,
   AnalyzeDraftResult,
   IssueCategory,
   IssueSeverity,
@@ -78,15 +79,15 @@ const practiceSchema: z.ZodType<{
 });
 
 // —— 三个顶层 Schema（输出类型锁定为 shared 契约类型）——
-export const draftAnalysisSchema: z.ZodType<AnalyzeDraftResult> = z.object({
+export const draftAnalysisSchema = z.object({
   minimalRevision: z.string(),
   naturalRevision: z.string(),
-  shouldClarify: z.boolean(),
-  clarificationQuestions: z.array(z.string()),
+  shouldClarify: z.boolean().default(false),
+  clarificationQuestions: z.array(z.string()).default([]),
   issues: z.array(analysisIssueSchema),
   keyLearningPoint: keyLearningPointSchema,
   practice: practiceSchema,
-});
+}) as z.ZodType<AnalyzeDraftResult>;
 
 export const reviewGenerationSchema: z.ZodType<ReviewGenerationResult> = z.object({
   taskType: z.enum(REVIEW_TASK_TYPES),
@@ -181,4 +182,45 @@ export function parseReviewGeneration(raw: string): Result<ReviewGenerationResul
 /** 解析「复习评价（Review Evaluation）」AI 输出 → ReviewEvaluation。 */
 export function parseReviewEvaluation(raw: string): Result<ReviewEvaluation> {
   return parseAiJson(raw, reviewEvaluationSchema, '复习评价');
+}
+
+// —— 输入 Schema（T022：草稿检查入参）——
+// 值域与 shared/types/ai 完全一致（as const 得到字面量联合，供 z.enum）。
+const SOURCE_TYPES = ['email', 'instant_message', 'meeting', 'report'] as const;
+const AUDIENCES = ['colleague', 'manager', 'client', 'supplier', 'other'] as const;
+const TONES = ['neutral', 'formal', 'friendly', 'firm'] as const;
+
+/**
+ * 草稿检查的输入契约（T022）。
+ * 在把输入交给 AI 前先校验，保证“非法输入不会发送到 AI”（docs/08 T022 验收标准）。
+ */
+export const analyzeDraftInputSchema = z.object({
+  originalEnglish: z
+    .string({
+      required_error: 'originalEnglish 必填',
+      invalid_type_error: 'originalEnglish 必须是字符串',
+    })
+    .trim()
+    .min(1, '英文草稿不能为空')
+    .max(10000, '英文草稿过长'),
+  originalChinese: z
+    .string({ invalid_type_error: 'originalChinese 必须是字符串' })
+    .trim()
+    .max(2000, '中文原意过长')
+    .optional(),
+  sourceType: z.enum(SOURCE_TYPES),
+  audience: z.enum(AUDIENCES),
+  tone: z.enum(TONES),
+  extraInstruction: z
+    .string({ invalid_type_error: 'extraInstruction 必须是字符串' })
+    .trim()
+    .max(2000, '额外说明过长')
+    .optional(),
+});
+
+/** 校验草稿输入；非法时返回 validation 错误（不会发送 AI）。 */
+export function parseAnalyzeDraftInput(raw: unknown): Result<AnalyzeDraftInput> {
+  const r = analyzeDraftInputSchema.safeParse(raw);
+  if (!r.success) return err('validation', formatZodError(r.error));
+  return ok(r.data as AnalyzeDraftInput);
 }

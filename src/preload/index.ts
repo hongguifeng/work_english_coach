@@ -5,6 +5,7 @@ import type { DesktopApi } from '../shared/types/desktopApi';
 import type { DataChangedEvent } from '../shared/types/data';
 import type { Result } from '../shared/types/app';
 import type { AiSettings } from '../shared/types/settings';
+import type { AnalyzeDraftInput, AnalyzeDraftResult } from '../shared/types/ai';
 
 /**
  * Preload 入口（T004 / T005 / T012 / T017）
@@ -34,6 +35,10 @@ const desktopApi: DesktopApi = {
   // T019：AI 非密钥配置持久化到 SQLite settings 表（绝不含 API Key）。
   aiConfigGet: () => invoke<AiSettings>('aiConfig:get'),
   aiConfigSave: (settings: AiSettings) => invoke<AiSettings>('aiConfig:save', settings),
+  // T022：草稿检查（AI 纠错）。API Key 只在主进程；结果经 Zod 校验后返回。
+  aiAnalyzeDraft: (input: AnalyzeDraftInput, requestId: string) =>
+    invoke<AnalyzeDraftResult>('ai:analyze-draft', input, requestId),
+  aiAnalyzeDraftCancel: (requestId: string) => invoke<boolean>('ai:analyze-draft-cancel', requestId),
   onDataChanged: (cb) => {
     const listener = (
       _e: IpcRendererEvent,

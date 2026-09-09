@@ -16,23 +16,13 @@ import { err, ok } from '../../shared/types/app';
 import type { ErrResult, Result } from '../../shared/types/app';
 import { classifyError } from '../db/errors';
 import { devLog } from '../log';
-import { createKeytarBackend } from '../services/secretBackend';
-import type { SecretBackend } from '../services/secretBackend';
 import {
   AI_API_KEY_ACCOUNT,
-  SECRET_SERVICE,
   clearApiKey,
+  getSharedSecretBackend,
   isApiKeyConfigured,
   saveApiKey,
 } from '../services/secretService';
-
-let backend: SecretBackend | null = null;
-function getBackend(): SecretBackend {
-  if (backend === null) {
-    backend = createKeytarBackend(SECRET_SERVICE);
-  }
-  return backend;
-}
 
 function errFromUnknown(e: unknown): ErrResult {
   const a = classifyError(e);
@@ -42,7 +32,7 @@ function errFromUnknown(e: unknown): ErrResult {
 export function registerSecretIpc(): void {
   ipcMain.handle('secret:set', async (_e, key: unknown): Promise<Result<void>> => {
     try {
-      const r = await saveApiKey(getBackend(), key);
+      const r = await saveApiKey(getSharedSecretBackend(), key);
       if (r.ok) {
         // 只记录长度，不记录内容
         const len = typeof key === 'string' ? key.length : 0;
@@ -59,7 +49,7 @@ export function registerSecretIpc(): void {
 
   ipcMain.handle('secret:clear', async (): Promise<Result<void>> => {
     try {
-      const r = await clearApiKey(getBackend());
+      const r = await clearApiKey(getSharedSecretBackend());
       if (r.ok) {
         devLog('secret:clear ok');
       } else {
@@ -76,7 +66,7 @@ export function registerSecretIpc(): void {
     'secret:is-configured',
     async (): Promise<Result<boolean>> => {
       try {
-        return ok(await isApiKeyConfigured(getBackend()));
+        return ok(await isApiKeyConfigured(getSharedSecretBackend()));
       } catch (e) {
         devLog('secret:is-configured fail:', e instanceof Error ? e.message : String(e));
         return errFromUnknown(e);

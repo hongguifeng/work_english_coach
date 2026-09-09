@@ -96,7 +96,7 @@ export async function buildAiRequestConfig(
       a.debug,
     );
   }
-  if (key === null) {
+  if (key === null || key.trim() === '') {
     return err('config', 'API Key 未配置，请先在设置页保存');
   }
   return ok({

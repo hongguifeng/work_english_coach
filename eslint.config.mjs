@@ -7,7 +7,16 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: ['out/**', 'dist/**', 'node_modules/**', 'drizzle/**', 'release/**', 'npm-install.log'],
+    ignores: [
+      'out/**',
+      'dist/**',
+      'node_modules/**',
+      'drizzle/**',
+      'release/**',
+      'npm-install.log',
+      'tmp-*',
+      '*.tmp.*',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
