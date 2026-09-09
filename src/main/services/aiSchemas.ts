@@ -103,6 +103,8 @@ export const reviewEvaluationSchema: z.ZodType<ReviewEvaluation> = z.object({
   coreMeaningCorrect: z.boolean(),
   grammarCorrect: z.boolean(),
   toneAppropriate: z.boolean(),
+  /** 是否使用了目标知识点（docs/04 §7 优先级 5；模型遗漏时不导致 parse 失败） */
+  usedTargetKnowledge: z.boolean().optional(),
   aiScore: z.number().min(0).max(100),
   feedbackZh: z.array(z.string()),
   improvedAnswer: z.string(),

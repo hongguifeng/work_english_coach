@@ -13,7 +13,13 @@ import type {
   ExpressionStatus,
   UpdateExpressionInput,
 } from '../shared/types/library';
-import type { ReviewGenerateTaskInput, ReviewTaskGeneratedView, TodayReviewView } from '../shared/types/review';
+import type {
+  ReviewEvaluateAnswerPayload,
+  ReviewEvaluation,
+  ReviewGenerateTaskInput,
+  ReviewTaskGeneratedView,
+  TodayReviewView,
+} from '../shared/types/review';
 
 /**
  * Preload 入口（T004 / T005 / T012 / T017）
@@ -69,6 +75,10 @@ const desktopApi: DesktopApi = {
     invoke<ReviewTaskGeneratedView>('review:generate-task', input),
   // T029：今日任务查询（到期且待完成，错题优先）+ 今日已完成数/待完成数。
   reviewToday: () => invoke<TodayReviewView>('review:today'),
+  // T031：复习答案 AI 评价（调 AI）；成功时主进程写 review_attempt；
+  // 失败时返回 err（答案保留在训练页供重试）。
+  reviewEvaluateAnswer: (payload: ReviewEvaluateAnswerPayload) =>
+    invoke<ReviewEvaluation>('review:evaluate-answer', payload),
   onDataChanged: (cb) => {
     const listener = (
       _e: IpcRendererEvent,

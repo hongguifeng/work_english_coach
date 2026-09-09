@@ -9,7 +9,13 @@ import type {
   ExpressionStatus,
   UpdateExpressionInput,
 } from './library';
-import type { ReviewGenerateTaskInput, ReviewTaskGeneratedView, TodayReviewView } from './review';
+import type {
+  ReviewEvaluateAnswerPayload,
+  ReviewEvaluation,
+  ReviewGenerateTaskInput,
+  ReviewTaskGeneratedView,
+  TodayReviewView,
+} from './review';
 
 /**
  * Preload 暴露给渲染进程的最小 API 接口（T012）
@@ -91,6 +97,12 @@ export interface DesktopApi {
   reviewGenerateTask(input: ReviewGenerateTaskInput): Promise<Result<ReviewTaskGeneratedView>>;
   /** T029：今日任务查询（到期且待完成，错题优先）+ 今日已完成数/待完成数。 */
   reviewToday(): Promise<Result<TodayReviewView>>;
+  /**
+   * T031：复习答案 AI 评价（调 AI；成功时主进程写 review_attempt）。
+   * 评审原则：不逐字匹配，意思对但措辞不同不判错（docs/04 §7）。
+   * 失败（未配置/超时/解析失败）返回 err；答案保留在训练页供重试，不落库。
+   */
+  reviewEvaluateAnswer(payload: ReviewEvaluateAnswerPayload): Promise<Result<ReviewEvaluation>>;
   /**
    * 订阅主进程的数据变更广播（目前触发点：删除全部数据）。
    * 返回取消订阅函数（用于 React useEffect 清理）（T017）。

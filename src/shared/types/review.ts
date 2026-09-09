@@ -83,6 +83,8 @@ export type ReviewEvaluation = {
   coreMeaningCorrect: boolean;
   grammarCorrect: boolean;
   toneAppropriate: boolean;
+  /** 是否使用了目标知识点（docs/04 §7 优先级 5；mock 评价可能无此字段） */
+  usedTargetKnowledge?: boolean;
   /** 0-100，辅助指标，不作为绝对评级 */
   aiScore: number;
   /** 最多 3 条，按重要性排序 */
@@ -116,6 +118,15 @@ export interface EvaluateReviewInput {
   /** 作答前是否查看了参考答案（如实记录）。 */
   revealedAnswer: boolean;
 }
+
+/**
+ * T031：复习答案评价请求（IPC 入参 = 评价输入 + 任务主键）。
+ * 成功后主进程写 review_attempt（含 usedHint/revealedAnswer/评价字段）。
+ */
+export type ReviewEvaluateAnswerPayload = EvaluateReviewInput & {
+  /** review_tasks.id（review_attempt.taskId） */
+  taskId: string;
+};
 
 /** 新建/重置一个题目会话（T030 答题界面初始状态：未用提示、未看答案、无评价）。 */
 export function createTaskSession(): TaskSession {

@@ -5,8 +5,8 @@ import type { Result } from '../../../shared/types/app';
 import type { SqlDb } from '../db';
 import { toResult } from '../errors';
 import { jsonEncode, parseStringArray } from '../json';
-import type { ReviewTaskRow } from '../schema';
-import { reviewTasks } from '../schema';
+import type { ReviewAttemptRow, ReviewTaskRow } from '../schema';
+import { reviewAttempts, reviewTasks } from '../schema';
 
 export interface CreateReviewTaskInput {
   taskType: ReviewTaskType;
@@ -140,6 +140,61 @@ export class ReviewTaskRepository {
       const base = this.db.select().from(reviewTasks);
       const q = status ? base.where(eq(reviewTasks.status, status)) : base;
       return q.orderBy(desc(reviewTasks.createdAt)).all();
+    });
+  }
+
+  /**
+   * T031 — 记录一次复习尝试（AI 评价完成后落库）。
+   * usedHint/revealedAnswer 为 0/1；feedbackZh 为 JSON 数组字符串（最多 3 条，服务层已截取）。
+   */
+  recordAttempt(input: {
+    taskId: string;
+    userAnswer: string;
+    usedHint: boolean;
+    revealedAnswer: boolean;
+    aiScore: number;
+    coreMeaningCorrect: boolean;
+    grammarCorrect: boolean;
+    toneAppropriate: boolean;
+    feedbackZh: readonly string[];
+    improvedAnswer: string;
+  }): Result<ReviewAttemptRow> {
+    return toResult(() => {
+      const row = this.db
+        .insert(reviewAttempts)
+        .values({
+          id: randomUUID(),
+          taskId: input.taskId,
+          userAnswer: input.userAnswer,
+          usedHint: input.usedHint,
+          revealedAnswer: input.revealedAnswer,
+          aiScore: input.aiScore,
+          coreMeaningCorrect: input.coreMeaningCorrect,
+          grammarCorrect: input.grammarCorrect,
+          toneAppropriate: input.toneAppropriate,
+          feedbackZh: jsonEncode(input.feedbackZh),
+          improvedAnswer: input.improvedAnswer,
+          createdAt: new Date().toISOString(),
+        })
+        .returning()
+        .get();
+      if (!row) throw new Error('复习尝试记录失败: ' + input.taskId);
+      return row;
+    });
+  }
+
+  /** T031 — 某任务最新一次尝试（用于展示上次反馈）。 */
+  getLatestAttempt(taskId: string): Result<(ReviewAttemptRow & { feedbackZhParsed: string[] }) | null> {
+    return toResult(() => {
+      const row = this.db
+        .select()
+        .from(reviewAttempts)
+        .where(eq(reviewAttempts.taskId, taskId))
+        .orderBy(desc(reviewAttempts.createdAt))
+        .limit(1)
+        .get();
+      if (!row) return null;
+      return { ...row, feedbackZhParsed: parseStringArray(row.feedbackZh) };
     });
   }
 }

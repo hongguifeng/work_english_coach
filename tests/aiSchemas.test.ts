@@ -209,6 +209,20 @@ describe('parseReviewEvaluation', () => {
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.error.code).toBe('parse');
   });
+
+  it('accepts usedTargetKnowledge when present (T031)', () => {
+    const obj = validReviewEvaluation();
+    obj.usedTargetKnowledge = true;
+    const res = parseReviewEvaluation(JSON.stringify(obj));
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.data.usedTargetKnowledge).toBe(true);
+  });
+
+  it('accepts missing usedTargetKnowledge (optional, T031)', () => {
+    const res = parseReviewEvaluation(JSON.stringify(validReviewEvaluation()));
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.data.usedTargetKnowledge).toBeUndefined();
+  });
 });
 
 describe('formatZodError', () => {

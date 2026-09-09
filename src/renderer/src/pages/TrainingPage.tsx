@@ -1,4 +1,4 @@
-// 训练模式（T029 真实任务查询 + T030 答题界面）
+// 训练模式（T029 真实任务查询 + T030 答题界面 + T031 AI 评价）
 //
 // - T029：任务来自 review:today IPC（错题优先排序、待完成/已完成计数）
 // - T030：答题界面（docs/08 T030 验收）——
@@ -6,8 +6,10 @@
 //   · 「使用提示」显示关键词，并如实记 usedHint
 //   · 提交前校验（buildEvaluateInput：空白答案/非法 → 错误提示，不发请求）
 //   · 防重复提交：作答中（loading）或已有评价（answered）时提交禁用
-// - 评价当前为 mock（mockEvaluate）；T031 替换为真实 AI 评价并持久化 review_attempt
-// - 跳过/下一题：本地状态（T031 持久化 skipped 与 complete）
+// - T031：提交后调 review:evaluate-answer 真实 AI 评价（docs/04 §7：不逐字匹配）；
+//   成功 → 展示评价 + 主进程写 review_attempt；
+//   失败（未配置/超时/解析失败）→ 答案保留在输入框（暂存）+ 错误提示 + 「重试」按钮，不落库
+// - 跳过/下一题：本地状态（T032 持久化 skipped 与 complete）
 import { useEffect, useState } from 'react';
 import {
   Alert,
@@ -23,9 +25,9 @@ import {
 } from 'antd';
 import { useDataChanged } from '../lib/useDataChanged';
 import { TaskList } from './training/TaskList';
-import { mockEvaluate, TASK_TYPE_LABEL } from './training/mockReview';
+import { TASK_TYPE_LABEL } from './training/mockReview';
 import { buildEvaluateInput } from '../../../shared/logic/evaluateInput';
-import { createTaskSession, type ReviewTask, type TaskSession } from '../../../shared/types/review';
+import { createTaskSession, type ReviewTask, type ReviewEvaluateAnswerPayload, type TaskSession } from '../../../shared/types/review';
 
 const { Text, Paragraph } = Typography;
 
@@ -66,6 +68,10 @@ export function TrainingPage() {
   const [showKeywords, setShowKeywords] = useState(false);
   const [showReference, setShowReference] = useState(false);
   const [inputError, setInputError] = useState<string | null>(null);
+  /** T031：AI 评价失败（答案暂存在输入框，可重试）；null=无错误 */
+  const [evaluateError, setEvaluateError] = useState<string | null>(null);
+  /** 上次提交的有效入参（重试复用，避免用户已改答案后用新答案重发） */
+  const [lastPayload, setLastPayload] = useState<ReviewEvaluateAnswerPayload | null>(null);
 
   // T029：真实查询（今日到期任务 + 今日已完成数）
   function load() {
@@ -112,27 +118,49 @@ export function TrainingPage() {
     setInputError(null);
   }
 
-  /** T030：提交作答 —— 校验 →（T031 替换）真实 AI 评价 → 展示。 */
+  /**
+   * T031：提交作答 —— 校验 → review:evaluate-answer（真实 AI 评价）。
+   * 成功：展示评价（主进程已写 review_attempt）。
+   * 失败：答案保留在输入框（暂存）+ 错误提示 + 重试按钮，不落库。
+   */
+  function doEvaluate(payload: ReviewEvaluateAnswerPayload) {
+    const call = window.desktopAPI?.reviewEvaluateAnswer;
+    if (!call) {
+      setEvaluateError('桌面 API 不可用（请通过 Electron 启动应用）');
+      setSession((s) => ({ ...s, loading: false }));
+      return;
+    }
+    void call(payload).then((r) => {
+      if (r.ok) {
+        setEvaluateError(null);
+        setSession((s) => ({ ...s, loading: false, evaluation: r.data }));
+        message.success('已提交，查看评价');
+      } else {
+        // 暂存：答案留在输入框（session.answer 不变），可稍后重试
+        setEvaluateError(r.error.message);
+        setSession((s) => ({ ...s, loading: false }));
+      }
+    });
+  }
+
   function submit() {
     if (!selected || !canSubmit) return;
-    const built = buildEvaluateInput(
-      selected,
-      session.answer,
-      session.usedHint,
-      session.revealed,
-    );
+    const built = buildEvaluateInput(selected, session.answer, session.usedHint, session.revealed);
     if (!built.ok) {
       setInputError(built.error);
       return;
     }
     setInputError(null);
+    setEvaluateError(null);
+    const payload: ReviewEvaluateAnswerPayload = { ...built.data, taskId: selected.id };
+    setLastPayload(payload);
     setSession((s) => ({ ...s, loading: true }));
-    void mockEvaluate(selected, built.data.userAnswer, built.data.usedHint, built.data.revealedAnswer).then(
-      (ev) => {
-        setSession((s) => ({ ...s, loading: false, evaluation: ev }));
-        message.success('已提交，查看评价');
-      },
-    );
+    doEvaluate(payload);
+  }
+
+  /** T031：重试上次提交（复用校验过的入参，不用可能已变化的输入框内容） */
+  function retryEvaluate() {
+    if (lastPayload) doEvaluate(lastPayload);
   }
 
   /** 跳过（本地；T031 持久化 skipped） */
@@ -240,6 +268,21 @@ export function TrainingPage() {
                 {inputError ? (
                   <Alert type="error" message={inputError} style={{ marginBottom: 0 }} />
                 ) : null}
+                {/* T031：AI 评价失败 → 答案暂存 + 重试 */}
+                {evaluateError ? (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    message={`AI 评价失败：${evaluateError}`}
+                    description="答案已暂存在上方输入框，可稍后重试。"
+                    action={
+                      <Button size="small" loading={submitting} onClick={retryEvaluate}>
+                        重试
+                      </Button>
+                    }
+                    style={{ marginBottom: 0 }}
+                  />
+                ) : null}
                 <Space>
                   <Button type="primary" disabled={!canSubmit} loading={submitting} onClick={submit}>
                     提交
@@ -282,6 +325,9 @@ export function TrainingPage() {
                         <span>核心意思 {ev.coreMeaningCorrect ? '✓' : '✗'}</span>
                         <span>语法 {ev.grammarCorrect ? '✓' : '✗'}</span>
                         <span>语气 {ev.toneAppropriate ? '✓' : '✗'}</span>
+                        {ev.usedTargetKnowledge !== undefined ? (
+                          <span>目标知识点 {ev.usedTargetKnowledge ? '✓' : '✗'}</span>
+                        ) : null}
                         <Text type="secondary">AI 分（辅助）：{ev.aiScore}</Text>
                       </Space>
                     }
@@ -309,7 +355,7 @@ export function TrainingPage() {
                   </Button>
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     提示已用：{session.usedHint ? '是' : '否'} · 参考已看：
-                    {session.revealed ? '是' : '否'}（如实记录，T031 写入 review_attempt）
+                    {session.revealed ? '是' : '否'}（已如实写入 review_attempt）
                   </Text>
                 </Space>
               </>

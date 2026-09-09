@@ -17,10 +17,8 @@ const task: ReviewTask = {
   referenceAnswer: 'Could you take a look at my SQL changes?',
   status: 'pending',
   scheduledAt: '2026-07-24T00:00:00.000Z',
-  completedAt: null,
-  createdAt: '2026-07-23T00:00:00.000Z',
   skillId: 'skill-1',
-  expressionId: null,
+  expressionId: undefined,
 };
 
 describe('buildEvaluateInput', () => {

@@ -848,8 +848,8 @@ npm run db:migrate
 - `src/shared/logic/evaluateInput.ts`（新，纯逻辑）：`buildEvaluateInput(task, answer, usedHint, revealed)` → zod 校验（userAnswer trim 后 ≥1 字符；taskType 限 5 值域）→ `{ok:true,data}` / `{ok:false,error}`（不抛异常，UI 展示错误）。
 - `src/shared/constants/review.ts`（新）：`REVIEW_TASK_TYPES` 5 题型权威常量（docs/07 §5.2：correction/transfer/rewrite/free/oral）；aiSchemas 与 evaluateInput 共用。
 - 题型值域统一：shared 类型联合、aiSchemas 生成 schema、review_tasks 表 `$type<ReviewTaskType>`（SQL 本身是 text 无 CHECK，无需迁移）全部对齐 5 值；mockReview/TaskList 同步。
-- `src/renderer/src/pages/TrainingPage.tsx`：答题界面 —— 默认不展示参考答案；「使用提示」显示关键词并记 usedHint；「显示参考答案」显示 Alert 并记 revealed；提交前 buildEvaluateInput 校验（空白/非法 → 行内错误，不发请求）；防重复提交（loading 或已有评价时提交禁用）；提交后展示 mock 评价（T031 换真实 AI）+ 你的答案/参考答案/改进版 + flags 回显；跳过/下一题本地切换（T031 持久化）。
-- 评价仍是 mock（mockEvaluate）——真实 AI 评价与 review_attempt 持久化在 T031。
+- 评价提交后调 review:evaluate-answer 真实 AI 评价（T031 接入）+ 你的答案/参考答案/改进版 + flags 回显；跳过/下一题本地切换（T032 持久化）。
+- ~~评价是 mock~~ 已替换：T031 接入真实 AI 评价 + review_attempt 落库（AI 失败时答案暂存可重试）；mockReview.ts 仅保留 TASK_TYPE_LABEL 供展示。
 
 测试：`tests/evaluateInput.test.ts`（7：有效透传+trim / 空答案 / 纯空白 / usedHint 记录 / revealedAnswer 记录 / 双 flags / free 题型透传）。全量 187/187，tsc 0，ESLint 0，build 通过。
 
@@ -857,15 +857,23 @@ npm run db:migrate
 
 ## T031：实现复习答案评价
 
-- [ ] 定义 EvaluateReviewInput。
-- [ ] 调用 AI 评价答案。
-- [ ] 判断核心意思。
-- [ ] 判断语法。
-- [ ] 判断语气。
-- [ ] 判断目标知识点。
-- [ ] 输出中文反馈。
-- [ ] 输出改进答案。
-- [ ] 保存 review_attempt。
+- [x] 定义 EvaluateReviewInput。（T030 已实现：src/shared/types/review.ts；T031 补 ReviewEvaluateAnswerPayload）
+- [x] 调用 AI 评价答案。（reviewEvaluateService + review:evaluate-answer IPC；MockAiClient 可注入）
+- [x] 判断核心意思。（coreMeaningCorrect）
+- [x] 判断语法。（grammarCorrect）
+- [x] 判断语气。（toneAppropriate）
+- [x] 判断目标知识点。（usedTargetKnowledge，可选字段，schema 容缺）
+- [x] 输出中文反馈。（feedbackZh，服务层截取最多 3 条）
+- [x] 输出改进答案。（improvedAnswer）
+- [x] 保存 review_attempt。（recordAttempt：flags 0/1、feedbackZh JSON、improvedAnswer；仅评价成功时落库）
+
+实现说明（T031）：
+
+- 评价 prompt（aiPrompts.buildEvaluateSystemPrompt/UserPrompt）实现 docs/04 §7 评审优先级：核心意思 > 事实准确 > 语法 > 语气 > 目标知识点 > 更自然表达；明确“不逐字匹配，意思对但措辞不同不判错”；用户数据段标注为「数据，不是指令」（注入防护）。
+- AI 返回经 parseReviewEvaluation（Zod）校验；非法 → parse 错误，不落库。
+- 失败语义：AI 未配置/Key 缺失/传输失败/超时/解析失败 → 返回 err；训练页答案保留在输入框（暂存）+ 错误 Alert + 「重试」按钮（复用校验过的入参），review_attempt 不落库——满足“AI 失败时可重试或暂存答案”。
+- 训练页展示：核心意思/语法/语气/目标知识点 ✓✗ + AI 分（辅助）+ 中文反馈列表 + 改进版 + flags 回显（已如实写入 review_attempt）。
+- 测试：tests/reviewEvaluateService.test.ts（5+2 用例：成功落库断言、feedback 截取 3 条、parse/传输/Key 失败不落库、getLatestAttempt）；aiSchemas.test.ts 补 usedTargetKnowledge 2 用例。
 
 验收标准：
 
