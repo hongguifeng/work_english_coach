@@ -589,24 +589,33 @@ npm run db:migrate
 
 ---
 
-## T020：实现 OpenAI 兼容 AI Client
+## T020：实现 OpenAI 兼容 AI Client ✅ 完成（2026-07-25）
 
-- [ ] 创建 `AiClient` 接口。
-- [ ] 创建 `OpenAICompatibleClient`。
-- [ ] 支持 Base URL。
-- [ ] 支持模型名称。
-- [ ] 支持 API Key。
-- [ ] 支持超时。
-- [ ] 支持网络错误。
-- [ ] 支持 HTTP 错误。
-- [ ] 支持返回内容解析。
-- [ ] 支持 mock client。
+- [x] 创建 `AiClient` 接口。
+- [x] 创建 `OpenAICompatibleClient`。
+- [x] 支持 Base URL。
+- [x] 支持模型名称。
+- [x] 支持 API Key。
+- [x] 支持超时。
+- [x] 支持网络错误。
+- [x] 支持 HTTP 错误。
+- [x] 支持返回内容解析。
+- [x] 支持 mock client。
 
-验收标准：
+### 实现说明
 
-- 可以调用 OpenAI 兼容接口。
-- 可以通过 mock 测试替代真实 AI。
-- AI 请求失败时返回统一 AppError。
+- `src/main/services/aiClient.ts`（electron-free，可纯 Node 测试）：`AiClient` 接口（`chat(config: AiRequestConfig, messages): Promise<Result<string>>`，成功返回 `choices[0].message.content` 原始字符串，失败返回统一 AppError）；`OpenAICompatibleClient` 调 `POST {baseUrl}/chat/completions`（自动去尾斜杠），带 `Content-Type` 与可选 `Authorization: Bearer <key>`，`body={model,messages}`；`fetchImpl` 可注入（默认 `globalThis.fetch`）便于测试替身。
+- 失败统一映射为 `Result<string>` 的 error 侧（AppError）：网络不可达→`network`；超时（AbortController/`timeoutMs`）→`timeout`；HTTP 401/403→`config`（提示检查 Key）；其它非 2xx→`network`（带状态码）；响应非 JSON / 缺 content→`parse`。debug 字段截断（≤300 字符，仅写本地日志、不给渲染进程），API Key 只进请求头、绝不入日志/返回体。
+- `MockAiClient`：可返回预设 `response` 字符串或预设 `AppError`，供单测与 UI 测试替代真实 AI。
+- 本层只做传输与失败归类；业务结构（AiAnalysisResult）的 Zod 解析/校验属 T021。
+
+### 验收结果
+
+- 单测：`tests/aiClient.test.ts` **12 例全过**（200 提取 content + 尾斜杠 URL 构造；带/无 Authorization；body 含 model+messages；timeout→`timeout`；网络 TypeError→`network`；401→`config`；500→`network` 含状态码与截断 debug；非 JSON→`parse`；缺 content→`parse`；空 messages→`validation`；MockAiClient 返回 response / 返回预设 error）。全量 **86/86**（39 repositories + 5 reviewSchedule + 4 dataService + 15 secretService + 11 aiConfigService + 12 aiClient）；`tsc`（node+web）与 ESLint 无错误；`npm run build` 成功。
+- 真实集成（用 esbuild 打包真实 `OpenAICompatibleClient` 后以纯 Node 运行，直连测试服务 `http://127.0.0.1:12346/v1`，模型 `qwen3.8-27b`）：
+  - 成功：`chat` 返回 `{ok:true, data:"\n\npong"}`（~1s）——证明**可调用 OpenAI 兼容接口**。
+  - 失败：`timeoutMs=1`→`{code:'timeout'}`；不可达端口→`{code:'network', debug:'fetch failed'}`；不存在模型→`{code:'network', message:'AI 请求失败（HTTP 503）', debug:'HTTP 503: …'}`——证明**失败返回统一 AppError**。
+- 验收标准达成：✅ 可调用 OpenAI 兼容接口；✅ 可用 mock 测试替代真实 AI；✅ AI 请求失败返回统一 AppError（Result.error，code 分类清晰）。
 
 ---
 
