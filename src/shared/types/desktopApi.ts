@@ -10,8 +10,8 @@ import type {
   UpdateExpressionInput,
 } from './library';
 import type {
+  EvaluateAnswerResult,
   ReviewEvaluateAnswerPayload,
-  ReviewEvaluation,
   ReviewGenerateTaskInput,
   ReviewTaskGeneratedView,
   TodayReviewView,
@@ -98,11 +98,16 @@ export interface DesktopApi {
   /** T029：今日任务查询（到期且待完成，错题优先）+ 今日已完成数/待完成数。 */
   reviewToday(): Promise<Result<TodayReviewView>>;
   /**
-   * T031：复习答案 AI 评价（调 AI；成功时主进程写 review_attempt）。
+   * T031/T032：复习答案 AI 评价（调 AI；成功时主进程写 review_attempt 并应用调度）。
+   * 返回 { evaluation, scheduling }：评价结果 + 下次复习时间（或已毕业）。
    * 评审原则：不逐字匹配，意思对但措辞不同不判错（docs/04 §7）。
-   * 失败（未配置/超时/解析失败）返回 err；答案保留在训练页供重试，不落库。
+   * 失败（未配置/超时/解析失败）返回 err；答案保留在训练页供重试，不落库、不调度。
    */
-  reviewEvaluateAnswer(payload: ReviewEvaluateAnswerPayload): Promise<Result<ReviewEvaluation>>;
+  reviewEvaluateAnswer(payload: ReviewEvaluateAnswerPayload): Promise<Result<EvaluateAnswerResult>>;
+  /**
+   * T032：跳过今日任务（不计成绩、不写 attempt；status='skipped'，不再到期）。
+   */
+  reviewSkipTask(payload: { taskId: string }): Promise<Result<{ taskId: string }>>;
   /**
    * 订阅主进程的数据变更广播（目前触发点：删除全部数据）。
    * 返回取消订阅函数（用于 React useEffect 清理）（T017）。

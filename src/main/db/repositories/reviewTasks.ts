@@ -80,11 +80,11 @@ export class ReviewTaskRepository {
     );
   }
 
-  complete(id: string): Result<ReviewTaskRow> {
+  complete(id: string, completedAt: string = new Date().toISOString()): Result<ReviewTaskRow> {
     return toResult(() => {
       const row = this.db
         .update(reviewTasks)
-        .set({ status: 'completed', completedAt: new Date().toISOString() })
+        .set({ status: 'completed', completedAt })
         .where(eq(reviewTasks.id, id))
         .returning()
         .get();
@@ -93,17 +93,56 @@ export class ReviewTaskRepository {
     });
   }
 
-  /** 掌握后按下次间隔改期（重置为 pending）。 */
-  reschedule(id: string, nextScheduledAt: string): Result<ReviewTaskRow> {
+  /**
+   * T032 — 重新排期：保持 status='pending'、更新 scheduledAt，并记录本次作答时间（completedAt）。
+   * 答错/用提示/查看 → 次日；独立答对 → 递进间隔。原地更新（不新建行，避免 T028 去重冲突）。
+   */
+  reschedule(id: string, nextScheduledAt: string, completedAt: string = new Date().toISOString()): Result<ReviewTaskRow> {
     return toResult(() => {
       const row = this.db
         .update(reviewTasks)
-        .set({ scheduledAt: nextScheduledAt, status: 'pending' })
+        .set({ scheduledAt: nextScheduledAt, status: 'pending', completedAt })
         .where(eq(reviewTasks.id, id))
         .returning()
         .get();
       if (!row) throw new Error('复习任务改期失败: ' + id);
       return row;
+    });
+  }
+
+  /** T032 — 跳过（不计成绩、不写 attempt）：status='skipped' + completedAt=now。 */
+  skip(id: string, completedAt: string = new Date().toISOString()): Result<ReviewTaskRow> {
+    return toResult(() => {
+      const row = this.db
+        .update(reviewTasks)
+        .set({ status: 'skipped', completedAt })
+        .where(eq(reviewTasks.id, id))
+        .returning()
+        .get();
+      if (!row) throw new Error('复习任务跳过失败: ' + id);
+      return row;
+    });
+  }
+
+  /**
+   * T032 — 累计「独立答对」次数（coreMeaningCorrect=true 且未用提示、未查看答案）。
+   * 用于递进间隔与毕业判定（docs/03 §3：只有独立答对才算掌握）。
+   */
+  countCorrectNoHint(taskId: string): Result<number> {
+    return toResult(() => {
+      const rows = this.db
+        .select({ n: sql<number>`count(*)` })
+        .from(reviewAttempts)
+        .where(
+          and(
+            eq(reviewAttempts.taskId, taskId),
+            eq(reviewAttempts.coreMeaningCorrect, true),
+            eq(reviewAttempts.usedHint, false),
+            eq(reviewAttempts.revealedAnswer, false),
+          ),
+        )
+        .all();
+      return rows[0]?.n ?? 0;
     });
   }
 

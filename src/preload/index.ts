@@ -14,8 +14,8 @@ import type {
   UpdateExpressionInput,
 } from '../shared/types/library';
 import type {
+  EvaluateAnswerResult,
   ReviewEvaluateAnswerPayload,
-  ReviewEvaluation,
   ReviewGenerateTaskInput,
   ReviewTaskGeneratedView,
   TodayReviewView,
@@ -75,10 +75,13 @@ const desktopApi: DesktopApi = {
     invoke<ReviewTaskGeneratedView>('review:generate-task', input),
   // T029：今日任务查询（到期且待完成，错题优先）+ 今日已完成数/待完成数。
   reviewToday: () => invoke<TodayReviewView>('review:today'),
-  // T031：复习答案 AI 评价（调 AI）；成功时主进程写 review_attempt；
-  // 失败时返回 err（答案保留在训练页供重试）。
+  // T031/T032：复习答案 AI 评价（调 AI）；成功时主进程写 review_attempt 并应用调度；
+  // 返回 { evaluation, scheduling }；
+  // 失败时返回 err（答案保留在训练页供重试，不落库/不调度）。
   reviewEvaluateAnswer: (payload: ReviewEvaluateAnswerPayload) =>
-    invoke<ReviewEvaluation>('review:evaluate-answer', payload),
+    invoke<EvaluateAnswerResult>('review:evaluate-answer', payload),
+  // T032：跳过今日任务（不计成绩，status='skipped'）。
+  reviewSkipTask: (payload: { taskId: string }) => invoke<{ taskId: string }>('review:skip-task', payload),
   onDataChanged: (cb) => {
     const listener = (
       _e: IpcRendererEvent,

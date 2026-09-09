@@ -9,7 +9,8 @@
 // - T031：提交后调 review:evaluate-answer 真实 AI 评价（docs/04 §7：不逐字匹配）；
 //   成功 → 展示评价 + 主进程写 review_attempt；
 //   失败（未配置/超时/解析失败）→ 答案保留在输入框（暂存）+ 错误提示 + 「重试」按钮，不落库
-// - 跳过/下一题：本地状态（T032 持久化 skipped 与 complete）
+// - T032：评价成功后主进程自动调度（原地改期 1/3/7/14/30 天 或 5 次独立答对毕业）；
+//   界面展示「下次复习：N 天后」/「已掌握」；跳过 → review:skip-task（status='skipped'，不计成绩）
 import { useEffect, useState } from 'react';
 import {
   Alert,
@@ -135,6 +136,8 @@ export function TrainingPage() {
         setEvaluateError(null);
         setSession((s) => ({ ...s, loading: false, evaluation: r.data }));
         message.success('已提交，查看评价');
+        // T032：任务已被改期/毕业 → 刷新今日列表（该任务从到期列表消失，自动选中下一题）
+        load();
       } else {
         // 暂存：答案留在输入框（session.answer 不变），可稍后重试
         setEvaluateError(r.error.message);
@@ -163,18 +166,22 @@ export function TrainingPage() {
     if (lastPayload) doEvaluate(lastPayload);
   }
 
-  /** 跳过（本地；T031 持久化 skipped） */
+  /** T032：跳过今日任务（IPC：status='skipped'，不计成绩、不写 attempt）；成功后刷新列表 */
   function skip() {
     if (!selected || submitting) return;
-    if (tasks) {
-      setTasks(tasks.map((t) => (t.id === selected.id ? { ...t, status: 'skipped' } : t)));
+    const call = window.desktopAPI?.reviewSkipTask;
+    if (!call) {
+      message.error('桌面 API 不可用（请通过 Electron 启动应用）');
+      return;
     }
-    const next = tasks?.find((t) => t.status === 'pending' && t.id !== selected.id);
-    if (next) selectTask(next.id);
-    else {
-      setSelectedId(null);
-      setSession(createTaskSession());
-    }
+    void call({ taskId: selected.id }).then((r) => {
+      if (r.ok) {
+        message.success('已跳过（不计成绩）');
+        load();
+      } else {
+        message.error(r.error.message);
+      }
+    });
   }
 
   /** 下一题 */
@@ -188,7 +195,7 @@ export function TrainingPage() {
     }
   }
 
-  const ev = session.evaluation;
+  const ev = session.evaluation?.evaluation ?? null;
 
   return (
     <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -338,6 +345,20 @@ export function TrainingPage() {
                         ))}
                       </Space>
                     }
+                  />
+                ) : null}
+
+                {/* T032：调度结果（下次复习时间 / 已毕业） */}
+                {session.evaluation?.scheduling ? (
+                  <Alert
+                    type={session.evaluation.scheduling.graduated ? 'success' : 'info'}
+                    showIcon
+                    message={
+                      session.evaluation.scheduling.graduated
+                        ? '已掌握（连续 5 次独立答对）——本题不再安排复习'
+                        : `下次复习：${new Date(session.evaluation.scheduling.nextScheduledAt ?? Date.now()).toLocaleDateString()}（${session.evaluation.scheduling.intervalDays} 天后）`
+                    }
+                    style={{ marginBottom: 0 }}
                   />
                 ) : null}
 

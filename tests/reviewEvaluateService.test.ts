@@ -1,9 +1,10 @@
-// T031 — 复习答案 AI 评价服务（reviewEvaluateService）测试
+// T031/T032 — 复习答案 AI 评价服务（reviewEvaluateService）测试
 //
-// 用注入的 FakeClient + FakeSecretBackend + 测试库，覆盖（docs/08 T031 验收）：
-// - 成功：AI 返回合法评价 → ok；review_attempt 落库（flags 0/1、feedbackZh JSON、improvedAnswer）
+// 用注入的 FakeClient + FakeSecretBackend + 测试库，覆盖（docs/08 T031/T032 验收）：
+// - 成功：AI 返回合法评价 → ok（{evaluation, scheduling}）；review_attempt 落库（flags 0/1、feedbackZh JSON、improvedAnswer）
+// - T032 调度副作用：用提示答对 / 独立答对 → 原地改期 +1 天（status 保持 pending）
 // - feedbackZh 超过 3 条 → 服务层截取前 3 条（UI/落库均 ≤3，docs/04 §7）
-// - AI 返回非法结构 → parse 错误，不落库（答案可重试/暂存）
+// - AI 返回非法结构 → parse 错误，不落库、不调度（答案可重试/暂存）
 // - AI 传输失败 → 错误透传，不落库
 // - API Key 缺失 → config 错误（不调 AI，不落库）
 import { describe, it, expect } from 'vitest';
@@ -110,9 +111,21 @@ describe('evaluateReviewAnswer', () => {
     const res = await evaluateReviewAnswer(makeInput(), repos, deps);
     expect(res.ok).toBe(true);
     if (!res.ok) throw new Error('fail');
-    expect(res.data.aiScore).toBe(82);
-    expect(res.data.coreMeaningCorrect).toBe(true);
-    expect(res.data.usedTargetKnowledge).toBe(true);
+    expect(res.data.evaluation.aiScore).toBe(82);
+    expect(res.data.evaluation.coreMeaningCorrect).toBe(true);
+    expect(res.data.evaluation.usedTargetKnowledge).toBe(true);
+
+    // T032：用提示答对（usedHint=true）→ 原地改期 +1 天，status 保持 pending
+    expect(res.data.scheduling.outcome).toBe('used_hint');
+    expect(res.data.scheduling.graduated).toBe(false);
+    expect(res.data.scheduling.intervalDays).toBe(1);
+    if (res.data.scheduling.nextScheduledAt) {
+      const delta = new Date(res.data.scheduling.nextScheduledAt).getTime() - Date.now();
+      expect(delta).toBeGreaterThan(86_400_000 - 60_000);
+      expect(delta).toBeLessThan(86_400_000 + 60_000);
+    }
+    const taskRow = mustOk(repos.reviewTasks.get('task-1'));
+    expect(taskRow?.status).toBe('pending');
 
     const rows = readAttemptRows(real, 'task-1');
     expect(rows.length).toBe(1);
@@ -140,7 +153,7 @@ describe('evaluateReviewAnswer', () => {
     const res = await evaluateReviewAnswer(makeInput(), repos, deps);
     expect(res.ok).toBe(true);
     if (!res.ok) throw new Error('fail');
-    expect(res.data.feedbackZh).toEqual(['a', 'b', 'c']);
+    expect(res.data.evaluation.feedbackZh).toEqual(['a', 'b', 'c']);
 
     const rows = readAttemptRows(real, 'task-1');
     expect(JSON.parse(String(rows[0].feedbackZh))).toEqual(['a', 'b', 'c']);
@@ -152,12 +165,15 @@ describe('evaluateReviewAnswer', () => {
     const real = createTestDb();
     const repos = createRepositories(real.db);
     const deps = makeDeps(real, { client: new MockAiClient({ response: '{"foo":"bar"}' }) });
+    insertReviewTask(real, 'task-1');
 
     const res = await evaluateReviewAnswer(makeInput(), repos, deps);
     expect(res.ok).toBe(false);
     if (res.ok) throw new Error('expected fail');
     expect(res.error.code).toBe('parse');
     expect(readAttemptRows(real, 'task-1').length).toBe(0);
+    // T032：评价失败 → 不调度（任务状态不变）
+    expect(mustOk(repos.reviewTasks.get('task-1'))?.status).toBe('pending');
 
     real.close();
   });
@@ -193,6 +209,26 @@ describe('evaluateReviewAnswer', () => {
     expect(res.error.code).toBe('config');
     expect(counting.calls).toBe(0);
     expect(readAttemptRows(real, 'task-1').length).toBe(0);
+
+    real.close();
+  });
+  it('independent correct answer (no hint, no reveal) reschedules by 1 day, task stays pending', async () => {
+    const real = createTestDb();
+    const repos = createRepositories(real.db);
+    const deps = makeDeps(real, { client: new MockAiClient({ response: JSON.stringify(validEvaluation) }) });
+    insertReviewTask(real, 'task-1');
+
+    const res = await evaluateReviewAnswer(
+      makeInput({ userAnswer: 'We have not received the goods yet, please check.', usedHint: false, revealedAnswer: false }),
+      repos,
+      deps,
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('fail');
+    expect(res.data.scheduling.outcome).toBe('correct_no_hint');
+    expect(res.data.scheduling.graduated).toBe(false);
+    expect(res.data.scheduling.intervalDays).toBe(1);
+    expect(mustOk(repos.reviewTasks.get('task-1'))?.status).toBe('pending');
 
     real.close();
   });

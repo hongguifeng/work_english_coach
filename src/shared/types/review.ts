@@ -92,13 +92,27 @@ export type ReviewEvaluation = {
   improvedAnswer: string;
 };
 
+import type { ReviewOutcome } from '../logic/reviewSchedule';
+
+/** T032：评价 + 调度的组合结果（IPC / 渲染进程共用）。 */
+export type EvaluateAnswerResult = {
+  evaluation: ReviewEvaluation;
+  scheduling: {
+    outcome: ReviewOutcome;
+    graduated: boolean;
+    intervalDays: number | null;
+    nextScheduledAt: string | null;
+  };
+};
+
 /** 训练页每题的会话状态（本地 UI 状态，非持久化） */
 export type TaskSession = {
   answer: string;
   usedHint: boolean;
   revealed: boolean;
   loading: boolean;
-  evaluation: ReviewEvaluation | null;
+  /** T031/T032：评价 + 调度结果（提交成功后由 IPC 返回） */
+  evaluation: EvaluateAnswerResult | null;
 };
 
 /**
