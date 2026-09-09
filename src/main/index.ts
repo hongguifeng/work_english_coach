@@ -9,6 +9,7 @@ import { registerAiAnalysisIpc } from './ipc/aiAnalysisHandlers';
 import { registerAppIpc } from './ipc/appHandlers';
 import { registerAiConfigIpc } from './ipc/aiConfigHandlers';
 import { registerDataIpc } from './ipc/dataHandlers';
+import { registerClipboardIpc } from './ipc/clipboardHandlers';
 import { registerSecretIpc } from './ipc/secretHandlers';
 import { devLog } from './log';
 
@@ -120,6 +121,7 @@ if (!gotTheLock) {
     registerAiAnalysisIpc();
     registerAiConfigIpc();
     registerDataIpc();
+    registerClipboardIpc();
     registerSecretIpc();
     mainWindow = createMainWindow();
   });

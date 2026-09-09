@@ -39,6 +39,7 @@ const desktopApi: DesktopApi = {
   aiAnalyzeDraft: (input: AnalyzeDraftInput, requestId: string) =>
     invoke<AnalyzeDraftResult>('ai:analyze-draft', input, requestId),
   aiAnalyzeDraftCancel: (requestId: string) => invoke<boolean>('ai:analyze-draft-cancel', requestId),
+  clipboardWrite: (text: string) => invoke<boolean>('clipboard:write', text),
   onDataChanged: (cb) => {
     const listener = (
       _e: IpcRendererEvent,

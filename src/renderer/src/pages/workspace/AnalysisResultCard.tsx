@@ -1,94 +1,75 @@
-import { Alert, Button, Card, Divider, Empty, Space, Spin, Tag, Typography } from 'antd';
-import type {
-  AnalysisIssue,
-  AnalyzeDraftResult,
-  IssueCategory,
-  IssueSeverity,
-} from '../../../../shared/types/ai';
+import { useEffect, useRef, useState } from 'react';
+import { Card, Descriptions, Empty, Space, Tag, Button, Typography } from 'antd';
+import type { AnalyzeDraftResult } from '../../../../shared/types/ai';
+import { CATEGORY_LABELS } from '../../../../shared/constants/issues';
 
-const SEVERITY_META: Record<
-  IssueSeverity,
-  { color: string; label: string }
-> = {
-  error: { color: 'red', label: '错误' },
-  suggestion: { color: 'blue', label: '表达建议' },
-  tone_risk: { color: 'orange', label: '语气风险' },
-  unclear: { color: 'gold', label: '意思不明确' },
+type SeverityColor = 'red' | 'orange' | 'purple' | 'blue';
+
+const SEVERITY_COLOR: Record<AnalyzeDraftResult['issues'][number]['severity'], SeverityColor> = {
+  error: 'red',
+  suggestion: 'orange',
+  tone_risk: 'purple',
+  unclear: 'blue',
 };
 
-const CATEGORY_LABEL: Record<IssueCategory, string> = {
-  grammar: '语法',
-  vocabulary: '词汇',
-  collocation: '搭配',
-  preposition: '介词',
-  article: '冠词',
-  tense: '时态',
-  plural: '单复数',
-  sentence_structure: '句式',
-  tone: '语气',
-  clarity: '清晰度',
-  other: '其他',
-};
+/**
+ * T024：复制按钮（含成功/失败提示）。
+ * 通过 typed IPC `clipboardWrite` 写入系统剪贴板（沙箱 renderer 不可靠 navigator.clipboard）。
+ * 点击后按钮短暂变为「已复制」/「复制失败」，1.6s 后复位。
+ */
+function CopyButton({ text }: { text: string }): JSX.Element {
+  const [state, setState] = useState<'idle' | 'ok' | 'fail'>('idle');
+  const timer = useRef<number | null>(null);
 
-function IssueRow({ issue }: { issue: AnalysisIssue }) {
-  const severity = SEVERITY_META[issue.severity];
+  useEffect(
+    () => () => {
+      if (timer.current !== null) window.clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  async function handleCopy(): Promise<void> {
+    if (!window.desktopAPI) {
+      setState('fail');
+      return;
+    }
+    const r = await window.desktopAPI.clipboardWrite(text);
+    setState(r.ok ? 'ok' : 'fail');
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setState('idle'), 1600);
+  }
+
   return (
-    <div className="wec-issue-row">
-      <Space size={6} wrap>
-        <Tag color={severity.color}>{severity.label}</Tag>
-        <Tag>{CATEGORY_LABEL[issue.category]}</Tag>
-      </Space>
-      <div className="wec-issue-texts">
-        <span className="wec-issue-original">{issue.originalText}</span>
-        <span className="wec-issue-arrow">→</span>
-        <span className="wec-issue-corrected">{issue.correctedText}</span>
-      </div>
-      <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-        {issue.explanationZh}
-      </Typography.Text>
-    </div>
+    <Button size="small" type={state === 'ok' ? 'primary' : 'default'} onClick={handleCopy}>
+      {state === 'ok' ? '已复制' : state === 'fail' ? '复制失败' : '复制'}
+    </Button>
   );
 }
 
-interface AnalysisResultCardProps {
-  loading: boolean;
+export interface AnalysisResultCardProps {
   result: AnalyzeDraftResult | null;
-  /** 失败/取消时的用户可读信息（T022）。 */
-  error?: string | null;
-  onConfirm: () => void;
-  /** 取消进行中的检查（T022）。 */
+  loading: boolean;
+  error: string | null;
+  onConfirm?: () => void;
   onCancel?: () => void;
-  /** 重试上次检查（T022）。 */
   onRetry?: () => void;
-  confirmHint?: string;
 }
 
-/**
- * 工作区结果区：最小修改版 + 自然表达版 + 问题列表 + 学习点/练习预览（T008/T022）
- */
 export function AnalysisResultCard({
-  loading,
   result,
+  loading,
   error,
-  onConfirm,
-  onCancel,
-  onRetry,
-  confirmHint,
-}: AnalysisResultCardProps) {
+  onConfirm = () => {},
+  onCancel = () => {},
+  onRetry = () => {},
+}: AnalysisResultCardProps): JSX.Element {
   if (loading) {
     return (
       <Card>
-        <div className="wec-loading-block">
-          <Spin />
-          <Typography.Text type="secondary">
-            正在分析你的英文草稿，请稍候（约 30–60 秒）
-          </Typography.Text>
-        </div>
-        {onCancel ? (
-          <div style={{ textAlign: 'center', marginTop: 12 }}>
-            <Button onClick={onCancel}>取消</Button>
-          </div>
-        ) : null}
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Typography.Text type="secondary">正在分析你的草稿…（约 20~60 秒）</Typography.Text>
+          <Button onClick={onCancel}>取消</Button>
+        </Space>
       </Card>
     );
   }
@@ -96,18 +77,15 @@ export function AnalysisResultCard({
   if (error) {
     return (
       <Card>
-        <Alert
-          type="error"
-          showIcon
-          message={error}
-          action={
-            onRetry ? (
-              <Button type="primary" size="small" onClick={onRetry}>
-                重试
-              </Button>
-            ) : null
-          }
-        />
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Typography.Text type="danger">{error}</Typography.Text>
+          <Space>
+            <Button type="primary" onClick={onRetry}>
+              重试
+            </Button>
+            <Button onClick={onCancel}>取消</Button>
+          </Space>
+        </Space>
       </Card>
     );
   }
@@ -115,93 +93,88 @@ export function AnalysisResultCard({
   if (!result) {
     return (
       <Card>
-        <Empty description="填写左侧表单并点击「检查」，这里会显示修改结果" />
+        <Empty description="还没有分析结果。填写左侧草稿并点击「检查」开始。" />
       </Card>
     );
   }
 
   return (
-    <Card
-      title="检查结果"
-      extra={
-        <Button
-          type="primary"
-          onClick={onConfirm}
-          title={confirmHint}
-        >
-          保存并生成复习
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Card title="版本对比">
+        <Descriptions column={1} size="small">
+          <Descriptions.Item label="最小修改版">
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <div className="wec-version-min">{result.minimalRevision}</div>
+              <CopyButton text={result.minimalRevision} />
+            </Space>
+          </Descriptions.Item>
+          <Descriptions.Item label="自然表达版">
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <div className="wec-version-natural">{result.naturalRevision}</div>
+              <CopyButton text={result.naturalRevision} />
+            </Space>
+          </Descriptions.Item>
+          {result.clarificationQuestions.length > 0 && (
+            <Descriptions.Item label="需要你确认">
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {result.clarificationQuestions.map((q, i) => (
+                  <li key={i}>{q}</li>
+                ))}
+              </ul>
+            </Descriptions.Item>
+          )}
+        </Descriptions>
+      </Card>
+
+      <Card title={`问题与解释（${result.issues.length}）`}>
+        {result.issues.length === 0 ? (
+          <Empty description="没有检出明显问题" />
+        ) : (
+          <ul className="wec-issue-list">
+            {result.issues.map((issue, i) => (
+              <li key={i} className="wec-issue-item">
+                <Space wrap>
+                  <Tag color={SEVERITY_COLOR[issue.severity]}>{CATEGORY_LABELS[issue.category]}</Tag>
+                  {issue.severity !== 'error' && (
+                    <Tag>{issue.severity === 'tone_risk' ? '语气风险' : issue.severity === 'unclear' ? '意思不清' : '建议'}</Tag>
+                  )}
+                  <Typography.Text code>{issue.originalText}</Typography.Text>
+                  <span>→</span>
+                  <Typography.Text code>{issue.correctedText}</Typography.Text>
+                </Space>
+                <Typography.Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                  {issue.explanationZh}
+                </Typography.Text>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card title="今日重点">
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Typography.Text strong>{result.keyLearningPoint.title}</Typography.Text>
+          <Typography.Text>{result.keyLearningPoint.explanationZh}</Typography.Text>
+        </Space>
+      </Card>
+
+      <Card title="训练提示">
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Typography.Text>{result.practice.instructionZh}</Typography.Text>
+          <Typography.Text type="secondary">
+            场景：{result.practice.context}
+            {result.practice.keywords.length > 0 ? ` · 关键词：${result.practice.keywords.join('、')}` : ''}
+          </Typography.Text>
+        </Space>
+      </Card>
+
+      <Space>
+        <Button type="primary" onClick={onConfirm}>
+          确认并保存
         </Button>
-      }
-    >
-      {result.shouldClarify ? (
-        <Alert
-          type="warning"
-          showIcon
-          className="wec-clarify-alert"
-          message="AI 不确定你想表达的意思，请先确认"
-          description={
-            <ul className="wec-clarify-list">
-              {result.clarificationQuestions.map((q) => (
-                <li key={q}>{q}</li>
-              ))}
-            </ul>
-          }
-        />
-      ) : null}
-
-      <div className="wec-version-block">
-        <Tag>最小修改版</Tag>
-        <Typography.Paragraph className="wec-version-text">
-          {result.minimalRevision}
-        </Typography.Paragraph>
-      </div>
-
-      <div className="wec-version-block">
-        <Tag color="green">自然表达版</Tag>
-        <Typography.Paragraph className="wec-version-text">
-          {result.naturalRevision}
-        </Typography.Paragraph>
-      </div>
-
-      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-        AI 的修改仅供参考，不能直接算作用户掌握；确认后才会生成复习任务。
-      </Typography.Text>
-
-      <Divider style={{ margin: '12px 0' }} />
-
-      <Typography.Text strong>问题列表（{result.issues.length}）</Typography.Text>
-      {result.issues.length === 0 ? (
-        <Typography.Text type="secondary">
-          没有发现明显问题，草稿整体可用。
-        </Typography.Text>
-      ) : (
-        <div className="wec-issue-list">
-          {result.issues.map((issue) => (
-            <IssueRow key={issue.skillKey + issue.originalText} issue={issue} />
-          ))}
-        </div>
-      )}
-
-      <Divider style={{ margin: '12px 0' }} />
-
-      <div className="wec-lp-block">
-        <Tag color="purple">本次学习点</Tag>
-        <Typography.Text strong>{result.keyLearningPoint.title}</Typography.Text>
-        <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-          {result.keyLearningPoint.explanationZh}
-        </Typography.Text>
-      </div>
-
-      <div className="wec-lp-block">
-        <Tag color="purple">迁移练习预览</Tag>
-        <Typography.Text>{result.practice.instructionZh}</Typography.Text>
-        <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-          场景：{result.practice.context}
-        </Typography.Text>
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          点击「保存并生成复习」后，该练习将进入今日训练（参考答案届时隐藏，需独立输出）。
-        </Typography.Text>
-      </div>
-    </Card>
+        <Button onClick={onRetry}>重试</Button>
+        <Button onClick={onCancel}>取消</Button>
+      </Space>
+    </Space>
   );
 }

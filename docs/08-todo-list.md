@@ -698,21 +698,23 @@ npm run db:migrate
 
 ## T024：实现工作台 AI 结果展示
 
-- [ ] 展示最小修改版。
-- [ ] 展示自然表达版。
-- [ ] 展示错误列表。
-- [ ] 展示重点学习点。
-- [ ] 展示练习题。
-- [ ] 实现复制按钮。
-- [ ] 实现重新检查按钮。
-- [ ] 处理 AI 结果为空。
+- [x] 展示最小修改版。
+- [x] 展示自然表达版。
+- [x] 展示错误列表。
+- [x] 展示重点学习点。
+- [x] 展示练习题。
+- [x] 实现复制按钮（新增 `clipboard:write` typed IPC + CopyButton，成功变「已复制」）。
+- [x] 实现重新检查按钮（重试）。
+- [x] 处理 AI 结果为空（Empty 态）。
 
 验收标准：
 
-- 长文本展示正常。
-- 代码块或特殊字符不会导致页面异常。
-- 复制成功有提示。
-- AI 请求期间不能重复提交。
+- 长文本展示正常（`.wec-version-*` `white-space: pre-wrap` + `word-break`）。
+- 代码块或特殊字符不会导致页面异常（纯文本渲染，无 dangerouslySetInnerHTML）。
+- 复制成功有提示（按钮态「已复制」/「复制失败」）。
+- AI 请求期间不能重复提交（提交按钮 loading 时 disabled）。
+
+> 完成（2026-07-25）：新增 `src/main/services/clipboardService.ts`（`writeClipboardText` + 注入式 `ClipboardBackend`）与 `src/main/ipc/clipboardHandlers.ts`（`clipboard:write`，空串 → validation，异常 → storage）；`DesktopApi`/preload 增加 `clipboardWrite`；`AnalysisResultCard` 增加 `CopyButton`（最小修改版 / 自然表达版各一个，成功短暂变「已复制」）并保留 重试/取消/确认并保存 三键。新增 `tests/clipboardService.test.ts`（2 例）。`tsc`/`eslint`/`electron-vite build` 全绿；smoke 通过；CDP E2E 验证真实剪贴板写入（空串→validation，sentinel→ok，`Get-Clipboard` 读到 sentinel）。
 
 ---
 

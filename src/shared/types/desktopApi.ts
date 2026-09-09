@@ -48,6 +48,8 @@ export interface DesktopApi {
   aiAnalyzeDraft(input: AnalyzeDraftInput, requestId: string): Promise<Result<AnalyzeDraftResult>>;
   /** 取消一个进行中的草稿检查请求（按 requestId）；返回是否命中并中止（T022）。 */
   aiAnalyzeDraftCancel(requestId: string): Promise<Result<boolean>>;
+  /** 把文本写入系统剪贴板（成功 ok(true)；异常 storage 错误）（T024）。 */
+  clipboardWrite(text: string): Promise<Result<boolean>>;
   /**
    * 订阅主进程的数据变更广播（目前触发点：删除全部数据）。
    * 返回取消订阅函数（用于 React useEffect 清理）（T017）。
