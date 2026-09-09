@@ -26,6 +26,15 @@ export interface DesktopApi {
   /** 删除全部学习数据（保留 settings）。二次确认由调用方 UI 完成（T017）。 */
   dataDeleteAll(): Promise<Result<DeleteSummary>>;
   /**
+   * 保存 API Key 到系统凭据存储（keytar/DPAPI）。渲染进程写入后不得再持有原文
+   * （调用方应清空输入框）。仅返回操作结果，不返回 Key（T018）。
+   */
+  secretSet(key: string): Promise<Result<void>>;
+  /** 清除 API Key（幂等）。仅返回操作结果（T018）。 */
+  secretClear(): Promise<Result<void>>;
+  /** 查询是否已配置 API Key（只返回布尔，绝不返回 Key 原文）（T018）。 */
+  secretIsConfigured(): Promise<Result<boolean>>;
+  /**
    * 订阅主进程的数据变更广播（目前触发点：删除全部数据）。
    * 返回取消订阅函数（用于 React useEffect 清理）（T017）。
    */

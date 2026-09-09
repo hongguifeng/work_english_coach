@@ -538,20 +538,28 @@ npm run db:migrate
 
 # 四、AI 配置和基础设施
 
-## T018：实现安全密钥存储
+## T018：实现安全密钥存储（2026-07-25 完成）
 
-- [ ] 安装并配置 `keytar`。
-- [ ] API Key 保存到 Windows Credential Manager。
-- [ ] 实现保存 API Key。
-- [ ] 实现读取 API Key。
-- [ ] 实现删除 API Key。
-- [ ] Renderer 不得获得原始 API Key。
+- [x] 安装并配置 `keytar`（v7.9.0，N-API 稳定 ABI，已在 Electron 33.4.11 实测可加载；`scripts/keytar-probe.cjs` 往返读写通过）。
+- [x] API Key 保存到 Windows Credential Manager（keytar 在 Windows 底层用 DPAPI，随当前 Windows 用户加密，跨机器/跨用户不可解；service=`WorkEnglish Coach`、account=`aiApiKey`）。
+- [x] 实现保存 API Key（`secretService.saveApiKey`：Zod 风格校验——必须为字符串、trim 后非空、长度≤512；后端错误经 `classifyError` 分类；日志只记 `keyLen` 数字，从不记 Key 内容）。
+- [x] 实现读取 API Key（`secretService.readApiKey` 返回 `string | null`；**仅供主进程内部 AI 客户端（T020）调用，不通过任何 IPC 返回给 Renderer**）。
+- [x] 实现删除 API Key（`secretService.clearApiKey`，幂等——删除不存在的凭据也返回成功）。
+- [x] Renderer 不得获得原始 API Key（无 `secret:get`/`secret:read` IPC 通道；仅 `secret:is-configured` 返回布尔；`SettingsStore` 无 `apiKey` 字段；`SettingsPage` 用局部 `useState` 暂存输入、保存成功后清空）。
 
 验收标准：
 
-- API Key 不存在 SQLite。
-- API Key 不出现在日志。
-- 设置页只能显示是否已配置，不显示完整 Key。
+- [x] API Key 不存在 SQLite（Key 只写 DPAPI，从不入库；E2E 用 `grep` 复核真实 DB 文件不含测试 Key，命中 0）。
+- [x] API Key 不出现在日志（E2E 复核 dev 日志不含 Key 内容，命中 0；日志仅出现 `secret:set ok (account=aiApiKey, keyLen=16)`）。
+- [x] 设置页只能显示是否已配置，不显示完整 Key（UI 只渲染 `已配置`/`未配置`/`查询中…` 状态 Tag + 输入框；保存后输入框清空，不再回显 Key）。
+
+完成说明：
+
+- 新增：`src/main/services/secretBackend.ts`（1-arg service 绑定的 `SecretBackend` 接口 `get/set/delete`；`createKeytarBackend(service)` 用闭包绑定 service + 惰性动态 `import('keytar')`，避免原生模块加载失败变成启动失败；**关键：动态 import 的 CJS→ESM interop 修正——CJS 产物里 `import('keytar')` 的真实 API 落在 `.default`，`withDefault.default ?? mod` 同时兼容两种形态**）、`src/main/services/secretService.ts`（electron 无关纯函数，便于注入内存 fake 测试；常量 `SECRET_SERVICE`/`AI_API_KEY_ACCOUNT`/`MAX_API_KEY_LENGTH`）、`src/main/ipc/secretHandlers.ts`（`registerSecretIpc`：`secret:set`/`secret:clear`/`secret:is-configured`；惰性 memoized `getBackend()`）、`tests/secretService.test.ts`（15 用例）、`scripts/secret-prep.cjs`（E2E 前用 keytar 直接清空真实凭据）、`scripts/keytar-probe.cjs`（keytar 在 Electron 内往返读写的探针）。
+- 修改：`src/preload/index.ts`（+`secretSet`/`secretClear`/`secretIsConfigured`，不暴露完整 ipcRenderer，也不暴露任何读回 Key 的通道）、`src/shared/types/desktopApi.ts`（补 3 个签名）、`src/main/index.ts`（app.whenReady 内 `registerSecretIpc()`）、`src/renderer/src/pages/settings/SettingsStore.ts`（移除 `apiKey`/`setApiKey`，只保留 `ai: AiSettings`，zustand persist 到 localStorage）、`src/renderer/src/pages/SettingsPage.tsx`（新增「API Key（系统凭据存储）」卡片：状态 Tag + `Input.Password`（`autoComplete=off`、`maxLength=512`）+ 保存按钮 + Popconfirm 清除按钮；挂载时调 `secretIsConfigured()`）。
+- 检查：`npx tsc -p tsconfig.node.json --noEmit` 与 `npx tsc -p tsconfig.web.json --noEmit` 均通过；ESLint 无错误；Vitest **63/63**（39 repositories + 5 reviewSchedule + 4 dataService + 15 secretService）；`npm run build` 成功；`node scripts/smoke.mjs` 通过（app 启动、窗口加载、干净退出）。
+- E2E（真实桌面应用）：`scripts/secret-prep.cjs` 清空真实凭据（`before=null after=null`）→ `node scripts/dev.mjs -- --remote-debugging-port=9222` 启动 → agent-browser 经 CDP 连接 → 导航「设置」→确认初始「未配置」（仅「保存」按钮）→填入 `sk-test-e2e-t018` →点「保存」→状态变「已配置」（绿 Tag、出现「清除」按钮、提示「API Key 已保存到系统凭据存储（未写入数据库或日志）」、输入框清空）→`grep` 复核 dev 日志与真实 DB 文件均不含 Key（各命中 0，日志仅 `keyLen=16`）→点「清除」→Popconfirm「清除」确认→状态回「未配置」（仅「保存」、提示「API Key 已清除」、日志 `secret:clear ok`）→关闭应用。保存/读取/清除/状态回显/密钥不泄漏全链路在真实 Electron 进程验证通过。
+- 说明：`readApiKey` 目前尚未被 AI 客户端调用（T020 接入）；「测试连接」按钮（Settings 页）仍为占位（真实 `/v1/models`/最小 chat 调用属 T021）。
 
 ---
 

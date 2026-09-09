@@ -7,6 +7,7 @@ import { runMigrations } from './db/migrations';
 import { createMainWindow } from './windows/createMainWindow';
 import { registerAppIpc } from './ipc/appHandlers';
 import { registerDataIpc } from './ipc/dataHandlers';
+import { registerSecretIpc } from './ipc/secretHandlers';
 import { devLog } from './log';
 
 // 显式固定应用名（未打包/探针场景下 Electron 会回退为 "Electron"，
@@ -115,6 +116,7 @@ if (!gotTheLock) {
     bootDatabase();
     registerAppIpc();
     registerDataIpc();
+    registerSecretIpc();
     mainWindow = createMainWindow();
   });
 }

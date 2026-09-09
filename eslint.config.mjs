@@ -41,5 +41,17 @@ export default tseslint.config(
       globals: { ...globals.node },
     },
   },
+  {
+    // CJS 脚本（如 scripts/keytar-probe.cjs）：使用 require / console
+    files: ['scripts/**/*.cjs'],
+    languageOptions: {
+      globals: { ...globals.node },
+      sourceType: 'commonjs',
+    },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+      'no-console': 'off',
+    },
+  },
   prettier,
 );

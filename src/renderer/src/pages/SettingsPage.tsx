@@ -1,9 +1,10 @@
-// T011：设置页面。
-// - 非密钥设置：Zod 校验后保存到页内 Zustand（mock 持久化 localStorage）；T016 起切换 IPC + SQLite settings 表
-// - API Key：密码输入框，仅内存保存，不落盘（T018 起由 DPAPI 系统凭据存储接管）
+// 设置页（T011 骨架 / T017 数据管理 / T018 API Key 凭据存储）
+// - AI 服务非密钥设置：Zod 校验后存到页内 Zustand（T011 mock；T019 切换 IPC + SQLite settings 表）
+// - API Key：独立卡片，走系统凭据存储（keytar/DPAPI，T018）。
+//   * 只展示“是否已配置”，绝不显示完整 Key；保存后清空输入框，不在 UI 残留原文
 // - 测试连接：mock（T021 接入真实调用）
-// - 导出数据/删除全部数据：已接入真实 IPC + SQLite（T017）；删除后向渲染进程广播 data:changed
-import { useState } from 'react';
+// - 导出数据 / 删除全部数据：真实 IPC + SQLite（T017）
+import { useEffect, useState } from 'react';
 import {
   Alert,
   App as AntApp,
@@ -14,7 +15,9 @@ import {
   Input,
   InputNumber,
   Popconfirm,
+  Space,
   Switch,
+  Tag,
   Typography,
 } from 'antd';
 import { ThunderboltOutlined } from '@ant-design/icons';
@@ -25,14 +28,18 @@ import {
 } from '../../../shared/types/settings';
 import { useSettingsStore } from './settings/SettingsStore';
 
-type TestResult = { kind: 'idle' } | { kind: 'testing' } |
-  { kind: 'ok' } | { kind: 'fail'; message: string };
+type TestResult =
+  | { kind: 'idle' }
+  | { kind: 'testing' }
+  | { kind: 'ok' }
+  | { kind: 'fail'; message: string };
+
+/** API Key 最大长度（与主进程 secretService 保持一致）。 */
+const MAX_API_KEY_LENGTH = 512;
 
 export default function SettingsPage() {
   const ai = useSettingsStore((s) => s.ai);
-  const apiKey = useSettingsStore((s) => s.apiKey);
   const set = useSettingsStore((s) => s.set);
-  const setApiKey = useSettingsStore((s) => s.setApiKey);
   const { message } = AntApp.useApp();
 
   const [form] = Form.useForm<{
@@ -45,6 +52,59 @@ export default function SettingsPage() {
   const [test, setTest] = useState<TestResult>({ kind: 'idle' });
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // API Key（T018）：原文只在输入框短暂存在，保存后清空；这里只跟踪“是否已配置”
+  const [keyInput, setKeyInput] = useState('');
+  const [keyConfigured, setKeyConfigured] = useState<boolean | null>(null);
+  const [savingKey, setSavingKey] = useState(false);
+  const [clearingKey, setClearingKey] = useState(false);
+
+  // 挂载时查询是否已配置（只返回布尔，不返回 Key）
+  useEffect(() => {
+    let active = true;
+    window.desktopAPI
+      .secretIsConfigured()
+      .then((r) => {
+        if (active) setKeyConfigured(r.ok ? r.data : false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleSaveKey = async () => {
+    const k = keyInput.trim();
+    if (k.length === 0) {
+      message.error('请先输入 API Key');
+      return;
+    }
+    if (k.length > MAX_API_KEY_LENGTH) {
+      message.error(`API Key 过长（最多 ${MAX_API_KEY_LENGTH} 个字符）`);
+      return;
+    }
+    setSavingKey(true);
+    const r = await window.desktopAPI.secretSet(k);
+    setSavingKey(false);
+    if (!r.ok) {
+      message.error(r.error.message);
+      return;
+    }
+    setKeyInput(''); // 清空原文，不在输入框残留
+    setKeyConfigured(true);
+    message.success('API Key 已保存到系统凭据存储（未写入数据库或日志）');
+  };
+
+  const handleClearKey = async () => {
+    setClearingKey(true);
+    const r = await window.desktopAPI.secretClear();
+    setClearingKey(false);
+    if (!r.ok) {
+      message.error(r.error.message);
+      return;
+    }
+    setKeyConfigured(false);
+    message.success('API Key 已清除');
+  };
 
   const handleSave = (values: {
     baseUrl: string;
@@ -65,9 +125,7 @@ export default function SettingsPage() {
       return;
     }
     set(result.data as AiSettings);
-    message.success(
-      '保存成功（API Key 未写入磁盘，T018 接入系统凭据存储后单独保管）',
-    );
+    message.success('保存成功（API Key 独立保存在系统凭据存储，不在本设置项内）');
   };
 
   const handleTest = async () => {
@@ -76,7 +134,8 @@ export default function SettingsPage() {
     await new Promise((r) => setTimeout(r, 800));
     const parsed = aiSettingsSchema.safeParse({
       ...ai,
-      baseUrl: (form.getFieldValue('baseUrl') as string | undefined)?.trim() ?? ai.baseUrl,
+      baseUrl:
+        (form.getFieldValue('baseUrl') as string | undefined)?.trim() ?? ai.baseUrl,
       model: (form.getFieldValue('model') as string | undefined)?.trim() ?? ai.model,
     });
     if (!parsed.success) {
@@ -93,7 +152,7 @@ export default function SettingsPage() {
     <div style={{ maxWidth: 720 }}>
       <PageHeader
         title="设置"
-        description="AI 服务、数据与隐私、数据管理（T011 mock 持久化，T016/T018/T021 接入真实存储与调用）"
+        description="AI 服务与数据管理。API Key 由系统凭据存储保管（T018）；AI 配置与测试连接将在 T019/T021 接入真实存储与调用。"
       />
 
       <Card>
@@ -131,22 +190,6 @@ export default function SettingsPage() {
             tooltip="传给 chat/completions 的 model 字段"
           >
             <Input placeholder="例如 gpt-4o-mini 或 qwen3.8-27b" />
-          </Form.Item>
-          <Form.Item
-            label="API Key"
-            extra={
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                仅保存在内存（T011）；T018 起写入 Windows 凭据存储（DPAPI），
-                绝不存入数据库或日志
-              </Typography.Text>
-            }
-          >
-            <Input.Password
-              placeholder="sk-..."
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              autoComplete="new-password"
-            />
           </Form.Item>
           <Form.Item
             name="timeoutSeconds"
@@ -190,7 +233,7 @@ export default function SettingsPage() {
             label="保存原始工作文本"
             extra={
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                关闭后不保存你的原始中文/英文文本，但学习记录（错误、表达、复习进度）仍会保存
+                关闭后不保存原始中文/英文文本，但学习记录（错误、表达、复习进度）仍会保存
               </Typography.Text>
             }
           >
@@ -245,9 +288,7 @@ export default function SettingsPage() {
                   message.error(res.error.message);
                   return;
                 }
-                message.success(
-                  `已删除 ${res.data.total} 条学习数据（设置已保留）`,
-                );
+                message.success(`已删除 ${res.data.total} 条学习数据（设置已保留）`);
               }}
             >
               <Button danger loading={deleting}>删除全部数据</Button>
@@ -259,6 +300,54 @@ export default function SettingsPage() {
             保存设置
           </Button>
         </Form>
+      </Card>
+
+      <Card
+        title="API Key（系统凭据存储）"
+        style={{ marginTop: 16 }}
+      >
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          API Key 保存在 Windows 系统凭据存储（DPAPI），仅当前 Windows 用户可读；
+          不写入数据库、不进入日志。这里只展示是否已配置，不显示完整 Key。
+        </Typography.Text>
+        <div style={{ margin: '12px 0' }}>
+          <Space>
+            <Tag color={keyConfigured ? 'green' : 'default'}>
+              {keyConfigured === null ? '查询中…' : keyConfigured ? '已配置' : '未配置'}
+            </Tag>
+          </Space>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Input.Password
+            placeholder={keyConfigured ? '输入新的 API Key 以更新' : 'sk-...'}
+            value={keyInput}
+            onChange={(e) => setKeyInput(e.target.value)}
+            style={{ flex: '1 1 280px' }}
+            autoComplete="off"
+            maxLength={MAX_API_KEY_LENGTH}
+          />
+          <Button
+            type="primary"
+            loading={savingKey}
+            onClick={handleSaveKey}
+          >
+            保存
+          </Button>
+          {keyConfigured ? (
+            <Popconfirm
+              title="确定要清除 API Key 吗？"
+              description="清除后需要重新输入才能使用 AI。"
+              okText="清除"
+              okButtonProps={{ danger: true, loading: clearingKey }}
+              cancelText="取消"
+              onConfirm={handleClearKey}
+            >
+              <Button danger loading={clearingKey}>
+                清除
+              </Button>
+            </Popconfirm>
+          ) : null}
+        </div>
       </Card>
     </div>
   );
