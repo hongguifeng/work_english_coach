@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import type { IssueCategory, IssueSeverity } from '../../../shared/types/ai';
 import type { Result } from '../../../shared/types/app';
@@ -56,6 +56,20 @@ export class DetectedIssueRepository {
     return toResult(
       () => this.db.select().from(detectedIssues).orderBy(desc(detectedIssues.createdAt)).limit(limit).all(),
     );
+  }
+
+  /** T033：按知识点 skillKey 统计错误次数（降序；高频错误用）。 */
+  countBySkillKey(): Result<Record<string, number>> {
+    return toResult(() => {
+      const rows = this.db
+        .select({ key: detectedIssues.skillKey, n: sql<number>`count(*)` })
+        .from(detectedIssues)
+        .groupBy(detectedIssues.skillKey)
+        .all();
+      const out: Record<string, number> = {};
+      for (const r of rows) out[r.key] = r.n;
+      return out;
+    });
   }
 
   /** 全部错误（无上限，按时间倒序；错误档案聚合用，T027） */

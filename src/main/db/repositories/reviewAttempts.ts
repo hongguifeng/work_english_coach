@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import type { Result } from '../../../shared/types/app';
 import type { SqlDb } from '../db';
@@ -73,6 +73,49 @@ export class ReviewAttemptRepository {
           .where(eq(reviewAttempts.taskId, taskId))
           .orderBy(desc(reviewAttempts.createdAt))
           .get() ?? null,
+    );
+  }
+
+  /** T033：since（ISO）之后的所有 createdAt（用于统计与趋势）。 */
+  listCreatedSince(sinceIso: string): Result<string[]> {
+    return toResult(
+      () =>
+        this.db
+          .select({ createdAt: reviewAttempts.createdAt })
+          .from(reviewAttempts)
+          .where(gte(reviewAttempts.createdAt, sinceIso))
+          .all()
+          .map((r) => r.createdAt),
+    );
+  }
+
+  /** T033：since（ISO）之后的独立答对次数（coreMeaningCorrect 且未用提示、未查看）。 */
+  countIndependentSince(sinceIso: string): Result<number> {
+    return toResult(
+      () =>
+        this.db
+          .select({ n: sql<number>`count(*)` })
+          .from(reviewAttempts)
+          .where(
+            and(
+              gte(reviewAttempts.createdAt, sinceIso),
+              eq(reviewAttempts.coreMeaningCorrect, true),
+              eq(reviewAttempts.usedHint, false),
+              eq(reviewAttempts.revealedAnswer, false),
+            ),
+          )
+          .get()?.n ?? 0,
+    );
+  }
+
+  /** T033：总尝试数（判断是否有任何练习数据）。 */
+  countAll(): Result<number> {
+    return toResult(
+      () =>
+        this.db
+          .select({ n: sql<number>`count(*)` })
+          .from(reviewAttempts)
+          .get()?.n ?? 0,
     );
   }
 }

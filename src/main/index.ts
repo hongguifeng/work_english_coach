@@ -14,6 +14,7 @@ import { registerExpressionIpc } from './ipc/expressionHandlers';
 import { registerErrorArchiveIpc } from './ipc/errorArchiveHandlers';
 import { registerReviewTaskIpc } from './ipc/reviewTaskHandlers';
 import { registerResultIpc } from './ipc/resultHandlers';
+import { registerStatsIpc } from './ipc/statsHandlers';
 import { registerSecretIpc } from './ipc/secretHandlers';
 import { devLog } from './log';
 
@@ -138,6 +139,7 @@ if (!gotTheLock) {
     registerErrorArchiveIpc();
     registerReviewTaskIpc();
     registerResultIpc();
+    registerStatsIpc();
     registerSecretIpc();
     mainWindow = createMainWindow();
   });

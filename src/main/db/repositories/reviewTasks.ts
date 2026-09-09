@@ -166,6 +166,18 @@ export class ReviewTaskRepository {
     });
   }
 
+  /** T033：某状态的任务总数（status='pending' → 待复习数量）。 */
+  countByStatus(status: ReviewTaskStatus): Result<number> {
+    return toResult(() => {
+      const rows = this.db
+        .select({ n: sql<number>`count(*)` })
+        .from(reviewTasks)
+        .where(eq(reviewTasks.status, status))
+        .all();
+      return rows[0]?.n ?? 0;
+    });
+  }
+
   getBySkill(skillId: string): Result<ReviewTaskRow[]> {
     return toResult(() => this.db.select().from(reviewTasks).where(eq(reviewTasks.skillId, skillId)).all());
   }

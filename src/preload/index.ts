@@ -20,6 +20,7 @@ import type {
   ReviewTaskGeneratedView,
   TodayReviewView,
 } from '../shared/types/review';
+import type { StudyStatsView } from '../shared/types/studyStats';
 
 /**
  * Preload 入口（T004 / T005 / T012 / T017）
@@ -82,6 +83,8 @@ const desktopApi: DesktopApi = {
     invoke<EvaluateAnswerResult>('review:evaluate-answer', payload),
   // T032：跳过今日任务（不计成绩，status='skipped'）。
   reviewSkipTask: (payload: { taskId: string }) => invoke<{ taskId: string }>('review:skip-task', payload),
+  // T033：基础学习统计（纯 DB 查询，无 AI）。
+  studyStats: () => invoke<StudyStatsView>('stats:study'),
   onDataChanged: (cb) => {
     const listener = (
       _e: IpcRendererEvent,

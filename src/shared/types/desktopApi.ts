@@ -16,6 +16,7 @@ import type {
   ReviewTaskGeneratedView,
   TodayReviewView,
 } from './review';
+import type { StudyStatsView } from './studyStats';
 
 /**
  * Preload 暴露给渲染进程的最小 API 接口（T012）
@@ -108,6 +109,11 @@ export interface DesktopApi {
    * T032：跳过今日任务（不计成绩、不写 attempt；status='skipped'，不再到期）。
    */
   reviewSkipTask(payload: { taskId: string }): Promise<Result<{ taskId: string }>>;
+  /**
+   * T033：基础学习统计（本周练习/独立完成/待复习/高频错误/近七天趋势）。
+   * 基于 review_attempts；AI 自动修改不算掌握，不生成等级分数。
+   */
+  studyStats(): Promise<Result<StudyStatsView>>;
   /**
    * 订阅主进程的数据变更广播（目前触发点：删除全部数据）。
    * 返回取消订阅函数（用于 React useEffect 清理）（T017）。
