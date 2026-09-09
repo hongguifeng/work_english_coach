@@ -74,6 +74,13 @@ export interface DesktopApi {
   /** 归档 / 恢复表达（T026）。 */
   expressionSetStatus(id: string, status: ExpressionStatus): Promise<Result<ExpressionRecord>>;
   /**
+   * 错误档案（T027）：按 skillKey 聚合的历史错误。
+   * 过滤：category（错误类别）、severity（error=真正错误 / suggestion=表达建议类）。
+   */
+  errorArchiveList(
+    filter?: import('./errorArchive').ErrorArchiveFilter,
+  ): Promise<Result<import('./errorArchive').ErrorArchiveEntry[]>>;
+  /**
    * 订阅主进程的数据变更广播（目前触发点：删除全部数据）。
    * 返回取消订阅函数（用于 React useEffect 清理）（T017）。
    */

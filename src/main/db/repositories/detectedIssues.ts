@@ -57,4 +57,11 @@ export class DetectedIssueRepository {
       () => this.db.select().from(detectedIssues).orderBy(desc(detectedIssues.createdAt)).limit(limit).all(),
     );
   }
+
+  /** 全部错误（无上限，按时间倒序；错误档案聚合用，T027） */
+  listAll(): Result<DetectedIssueRow[]> {
+    return toResult(
+      () => this.db.select().from(detectedIssues).orderBy(desc(detectedIssues.createdAt)).all(),
+    );
+  }
 }

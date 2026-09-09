@@ -59,6 +59,9 @@ const desktopApi: DesktopApi = {
   expressionDelete: (id: string) => invoke<boolean>('expression:delete', id),
   expressionSetStatus: (id: string, status: ExpressionStatus) =>
     invoke<ExpressionRecord>('expression:set-status', id, status),
+  // T027：错误档案（按 skillKey 聚合；可过滤类别 / 错误vs建议）。
+  errorArchiveList: (filter?: import('../shared/types/errorArchive').ErrorArchiveFilter) =>
+    invoke<import('../shared/types/errorArchive').ErrorArchiveEntry[]>('archive:errors', filter),
   onDataChanged: (cb) => {
     const listener = (
       _e: IpcRendererEvent,

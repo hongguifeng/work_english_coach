@@ -18,3 +18,21 @@ export const CATEGORY_LABELS: Record<IssueCategory, string> = {
 export const CATEGORY_OPTIONS: { value: IssueCategory; label: string }[] = (
   Object.keys(CATEGORY_LABELS) as IssueCategory[]
 ).map((value) => ({ value, label: CATEGORY_LABELS[value] }));
+
+// 错误严重度中文标签（T027：页面上区分「真正错误」与「表达建议」）
+import type { IssueSeverity } from '../types/ai';
+
+export const SEVERITY_LABELS: Record<IssueSeverity, string> = {
+  error: '错误',
+  suggestion: '建议',
+  tone_risk: '语气风险',
+  unclear: '意思不明确',
+};
+
+/** antd Tag 颜色（T027） */
+export const SEVERITY_TAG_COLORS: Record<IssueSeverity, string> = {
+  error: 'red',
+  suggestion: 'blue',
+  tone_risk: 'orange',
+  unclear: 'purple',
+};

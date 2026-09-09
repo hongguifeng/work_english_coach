@@ -762,20 +762,27 @@ npm run db:migrate
 
 ## T027：实现错误档案
 
-- [ ] 查询高频错误。
-- [ ] 按 category 分组。
-- [ ] 按 skillKey 聚合。
-- [ ] 显示出现次数。
-- [ ] 显示最近出现时间。
-- [ ] 显示最近练习结果。
-- [ ] 显示掌握状态。
-- [ ] 支持查看示例。
+- [x] 查询高频错误。
+- [x] 按 category 分组。
+- [x] 按 skillKey 聚合。
+- [x] 显示出现次数。
+- [x] 显示最近出现时间。
+- [x] 显示最近练习结果。
+- [x] 显示掌握状态。
+- [x] 支持查看示例。
 
 验收标准：
 
 - 同一个 skillKey 可以聚合多次错误。
 - AI 修改不被统计为用户掌握。
 - 页面能区分错误和表达建议。
+
+完成记录（2026-07-23）：
+
+- `buildErrorArchive` 聚合服务（src/main/services/errorArchiveService.ts）：按 skillKey 聚合 detected_issues，区分 severity=error（错误）与其余（建议）计数，关联 review_tasks/review_attempts 推导最近练习与掌握状态（`deriveMasteryStatus`：仅「独立答对」= 无提示+未查看答案+核心意思正确 → familiar，AI 修改不算掌握）。
+- `ErrorArchivePage` 从 stub 改为真实数据页：类别筛选 / 错误vs建议 Segmented / 出现次数+标签 / 最近出现 / 最近练习（独立答对/未独立掌握标签）/ 掌握状态 Tag / 「查看示例」抽屉（最近至多 3 条原始错误，删除线原文+修改+解释）。
+- IPC：`archive:errors`（Zod 校验 filter）+ preload 最小 API + `DetectedIssueRepository.listAll`。
+- 测试：tests/errorArchiveService.test.ts 10 个（聚合/时间倒序/错误vs建议过滤/类别过滤/掌握推导矩阵/未评上按答错处理）；总 166/166 通过，tsc/lint/build 全绿。
 
 ---
 
