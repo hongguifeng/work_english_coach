@@ -45,7 +45,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/main/**/*.{ts,js,mjs}', 'src/preload/**/*.{ts,js,mjs}', 'scripts/**/*.mjs'],
+    files: ['src/main/**/*.{ts,js,mjs}', 'src/preload/**/*.{ts,js,mjs}', 'scripts/**/*.mjs', '*.mjs'],
     languageOptions: {
       globals: { ...globals.node },
     },

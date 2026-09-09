@@ -741,20 +741,22 @@ npm run db:migrate
 
 ## T026：实现表达库真实数据
 
-- [ ] 用 IPC 替换 mock 数据。
-- [ ] 实现表达列表。
-- [ ] 实现新增表达。
-- [ ] 实现编辑表达。
-- [ ] 实现删除表达。
-- [ ] 实现搜索。
-- [ ] 实现场景筛选。
-- [ ] 实现状态筛选。
+- [x] 用 IPC 替换 mock 数据。
+- [x] 实现表达列表。
+- [x] 实现新增表达。
+- [x] 实现编辑表达。
+- [x] 实现删除表达。
+- [x] 实现搜索。
+- [x] 实现场景筛选。
+- [x] 实现状态筛选。
 
 验收标准：
 
-- CRUD 完整可用。
-- 刷新页面后数据不丢失。
-- 删除操作可恢复前有明确确认。
+- [x] CRUD 完整可用。
+- [x] 刷新页面后数据不丢失。
+- [x] 删除操作可恢复前有明确确认。
+
+> **完成记录（2026-07-23）**：`expressions` 表（id/scene/chinese_meaning/pattern/example/note/status/created_at/updated_at，status 软删：active/archived/deleted）+ Drizzle repository + `expressions:list/create/update/set-status/delete` IPC（zod 校验 + 参数化搜索/筛选）；表达库页面（搜索/场景/状态筛选、新增/编辑 Modal（内联 rules 与 schema 同步）、归档/恢复/删除 Popconfirm）；E2E（临时 `WEC_DB_FILE` 隔离 + 页面刷新重载断言 + `node:sqlite` 数据库级断言）9/9 通过。验收：tsc / eslint / 156 单测 / build 全过，smoke 启动正常。E2E 环境坑（vite 127.0.0.1 绑定、CDP 双层 result 解析、waitUntil 函数谓词必须显式调用、WSLENV 注入 ELECTRON_RUN_AS_NODE）已沉淀 docs/09。
 
 ---
 
