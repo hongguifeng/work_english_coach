@@ -20,6 +20,18 @@ export type ReviewTask = {
   scheduledAt: string;
 };
 
+/**
+ * AI 生成的复习题（docs/04 §6）：中文场景 + 关键词 + 参考答案，且与原始例句不同。
+ * 系统据此创建 review_tasks 行（id / status / scheduledAt 由系统补全）。
+ */
+export type ReviewGenerationResult = {
+  taskType: ReviewTaskType;
+  promptZh: string;
+  context: string;
+  keywords: string[];
+  referenceAnswer: string;
+};
+
 /** AI 对复习答案的评价（docs/04 §7：最多 3 条反馈） */
 export type ReviewEvaluation = {
   coreMeaningCorrect: boolean;

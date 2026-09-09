@@ -621,12 +621,20 @@ npm run db:migrate
 
 ## T021：实现 Zod AI 输出 Schema
 
-- [ ] 定义 Draft Analysis 输出 schema。
-- [ ] 定义 Review Generation 输出 schema。
-- [ ] 定义 Review Evaluation 输出 schema。
-- [ ] 对 AI 结果进行解析。
-- [ ] 对字段缺失进行错误处理。
-- [ ] 对非法枚举值进行错误处理。
+- [x] 定义 Draft Analysis 输出 schema。
+- [x] 定义 Review Generation 输出 schema。
+- [x] 定义 Review Evaluation 输出 schema。
+- [x] 对 AI 结果进行解析。
+- [x] 对字段缺失进行错误处理。
+- [x] 对非法枚举值进行错误处理。
+
+完成说明（2026-07-25）：
+
+- `src/main/services/aiSchemas.ts`（electron-free，纯 Node 可测）：三个 `z.ZodType` Schema（`draftAnalysisSchema`→`AnalyzeDraftResult`、`reviewGenerationSchema`→`ReviewGenerationResult`、`reviewEvaluationSchema`→`ReviewEvaluation`），字段名/值域严格对齐 docs/04；新增共享类型 `ReviewGenerationResult`（shared/types/review.ts）。
+- 稳健解析：`extractJson` 剥离 Markdown 围栏并截取首个 `{`…末尾 `}``；`parseAiJson` 依次做 JSON.parse（非法→友好 parse 错误，不抛异常）与 `safeParse`。
+- 用户可理解错误：`formatZodError`/`describeIssue` 把 Zod 问题翻译成中文（缺字段/类型不符/枚举取值非法/越界），最多列 3 条；适配 Zod 3.24 的 `invalid_enum_value` 与 `invalid_string` 代码。
+- `tests/aiSchemas.test.ts` 21 例全过（合法 JSON、围栏包裹、非法 JSON 不崩、缺字段/非法枚举/aiScore 越界均转为友好 parse 错误）。
+- 真实模型联调：qwen3.8-27b 返回的纠错 JSON 经 `parseDraftAnalysis` 校验成功（tense/collocation/preposition 问题、澄清问题、学习点、复习关键词均结构化）。
 
 验收标准：
 
