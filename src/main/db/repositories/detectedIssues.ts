@@ -64,4 +64,18 @@ export class DetectedIssueRepository {
       () => this.db.select().from(detectedIssues).orderBy(desc(detectedIssues.createdAt)).all(),
     );
   }
+
+  /** 某知识点的错误（按 skillKey，时间倒序；复习任务生成取最近示例用，T028） */
+  listBySkillKey(skillKey: string, limit = 3): Result<DetectedIssueRow[]> {
+    return toResult(
+      () =>
+        this.db
+          .select()
+          .from(detectedIssues)
+          .where(eq(detectedIssues.skillKey, skillKey))
+          .orderBy(desc(detectedIssues.createdAt))
+          .limit(limit)
+          .all(),
+    );
+  }
 }

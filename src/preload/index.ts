@@ -13,6 +13,7 @@ import type {
   ExpressionStatus,
   UpdateExpressionInput,
 } from '../shared/types/library';
+import type { ReviewGenerateTaskInput, ReviewTaskGeneratedView } from '../shared/types/review';
 
 /**
  * Preload 入口（T004 / T005 / T012 / T017）
@@ -62,6 +63,10 @@ const desktopApi: DesktopApi = {
   // T027：错误档案（按 skillKey 聚合；可过滤类别 / 错误vs建议）。
   errorArchiveList: (filter?: import('../shared/types/errorArchive').ErrorArchiveFilter) =>
     invoke<import('../shared/types/errorArchive').ErrorArchiveEntry[]>('archive:errors', filter),
+  // T028：从知识点/表达生成一道新练习（AI）→ 写入 review_tasks。
+  // skill 源的 id 可以是主键或 skillKey；去重时 created=false（已有待完成任务）。
+  reviewGenerateTask: (input: ReviewGenerateTaskInput) =>
+    invoke<ReviewTaskGeneratedView>('review:generate-task', input),
   onDataChanged: (cb) => {
     const listener = (
       _e: IpcRendererEvent,

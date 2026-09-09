@@ -9,6 +9,7 @@ import type {
   ExpressionStatus,
   UpdateExpressionInput,
 } from './library';
+import type { ReviewGenerateTaskInput, ReviewTaskGeneratedView } from './review';
 
 /**
  * Preload 暴露给渲染进程的最小 API 接口（T012）
@@ -80,6 +81,14 @@ export interface DesktopApi {
   errorArchiveList(
     filter?: import('./errorArchive').ErrorArchiveFilter,
   ): Promise<Result<import('./errorArchive').ErrorArchiveEntry[]>>;
+  /**
+   * 从知识点/表达生成一道新的复习练习（T028）：调 AI 产出
+   * 中文指令 + 场景 + 判分关键词 + 英文参考答案，并写入 review_tasks。
+   * - skill 源的 id 可以是 skills 主键或 skillKey（错误档案页只持有 skillKey）；
+   * - expression 源的 id 必须是 expressions 主键。
+   * 返回 created=false 表示该来源已有待完成任务（去重，返回现有任务）。
+   */
+  reviewGenerateTask(input: ReviewGenerateTaskInput): Promise<Result<ReviewTaskGeneratedView>>;
   /**
    * 订阅主进程的数据变更广播（目前触发点：删除全部数据）。
    * 返回取消订阅函数（用于 React useEffect 清理）（T017）。

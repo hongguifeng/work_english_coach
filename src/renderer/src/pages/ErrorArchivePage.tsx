@@ -31,6 +31,7 @@ import type {
   ErrorArchiveExample,
   ErrorArchiveFilter,
 } from '../../../shared/types/errorArchive';
+import type { ReviewTaskGeneratedView } from '../../../shared/types/review';
 import type { Result } from '../../../shared/types/app';
 
 type SeverityFilter = 'all' | 'error' | 'suggestion';
@@ -89,6 +90,8 @@ export default function ErrorArchivePage() {
   const [category, setCategory] = useState<string | undefined>(undefined);
   const [severity, setSeverity] = useState<SeverityFilter>('all');
   const [openEntry, setOpenEntry] = useState<ErrorArchiveEntry | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [lastGenerated, setLastGenerated] = useState<ReviewTaskGeneratedView | null>(null);
 
   const filter: ErrorArchiveFilter = useMemo(
     () => ({
@@ -115,6 +118,29 @@ export default function ErrorArchivePage() {
     void load();
   }, [load]);
   useDataChanged(() => void load());
+
+  const generateReview = useCallback(
+    async (entry: ErrorArchiveEntry) => {
+      setGenerating(true);
+      setLastGenerated(null);
+      const r: Result<ReviewTaskGeneratedView> = await window.desktopAPI.reviewGenerateTask({
+        source: 'skill',
+        id: entry.skillKey,
+      });
+      setGenerating(false);
+      if (!r.ok) {
+        message.error('生成复习任务失败：' + r.error.message);
+        return;
+      }
+      setLastGenerated(r.data);
+      if (r.data.created) {
+        message.success('已生成新的复习任务（明天开始复习）');
+      } else {
+        message.info('该知识点已有待复习任务，未重复生成');
+      }
+    },
+    [message],
+  );
 
   return (
     <div>
@@ -241,7 +267,21 @@ export default function ErrorArchivePage() {
         title={openEntry ? `${openEntry.title}（${openEntry.skillKey}）` : '示例'}
         width={560}
         open={openEntry !== null}
-        onClose={() => setOpenEntry(null)}
+        onClose={() => {
+          setOpenEntry(null);
+          setLastGenerated(null);
+        }}
+        extra={
+          openEntry && (
+            <Button
+              type="primary"
+              loading={generating}
+              onClick={() => void generateReview(openEntry)}
+            >
+              生成复习任务
+            </Button>
+          )
+        }
       >
         {openEntry && (
           <>
@@ -249,6 +289,22 @@ export default function ErrorArchivePage() {
               {openEntry.explanationZh}
             </Typography.Paragraph>
             <ExampleList examples={openEntry.examples} />
+            {lastGenerated && (
+              <Descriptions size="small" bordered column={1} style={{ marginTop: 12 }}>
+                <Descriptions.Item label="练习指令">
+                  {lastGenerated.task.promptZh}
+                </Descriptions.Item>
+                <Descriptions.Item label="场景">
+                  {lastGenerated.task.context || '—'}
+                </Descriptions.Item>
+                <Descriptions.Item label="参考答案">
+                  {lastGenerated.task.referenceAnswer}
+                </Descriptions.Item>
+                <Descriptions.Item label="计划复习">
+                  {formatDateTime(lastGenerated.task.scheduledAt)}
+                </Descriptions.Item>
+              </Descriptions>
+            )}
           </>
         )}
       </Drawer>

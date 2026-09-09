@@ -12,6 +12,7 @@ import { registerDataIpc } from './ipc/dataHandlers';
 import { registerClipboardIpc } from './ipc/clipboardHandlers';
 import { registerExpressionIpc } from './ipc/expressionHandlers';
 import { registerErrorArchiveIpc } from './ipc/errorArchiveHandlers';
+import { registerReviewTaskIpc } from './ipc/reviewTaskHandlers';
 import { registerResultIpc } from './ipc/resultHandlers';
 import { registerSecretIpc } from './ipc/secretHandlers';
 import { devLog } from './log';
@@ -135,6 +136,7 @@ if (!gotTheLock) {
     registerClipboardIpc();
     registerExpressionIpc();
     registerErrorArchiveIpc();
+    registerReviewTaskIpc();
     registerResultIpc();
     registerSecretIpc();
     mainWindow = createMainWindow();

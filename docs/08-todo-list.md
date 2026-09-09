@@ -790,18 +790,20 @@ npm run db:migrate
 
 ## T028：实现复习任务生成
 
-- [ ] 从重点知识点生成任务。
-- [ ] 从表达库生成任务。
-- [ ] 避免重复生成完全相同的任务。
-- [ ] 生成不同场景的迁移题。
-- [ ] 保存 promptZh、context、keywords 和 referenceAnswer。
-- [ ] 支持 taskType。
+- [x] 从重点知识点生成任务。
+- [x] 从表达库生成任务。
+- [x] 避免重复生成完全相同的任务。
+- [x] 生成不同场景的迁移题。
+- [x] 保存 promptZh、context、keywords 和 referenceAnswer。
+- [x] 支持 taskType。
+
+实现说明：`reviewTaskService.generateReviewTask`（依赖注入：`getSettingsRepo`/`getSecretBackend`/可选 `client`）；prompt 由 `aiPrompts.buildReviewUserPrompt` 构建；Zod 校验 `reviewGenerationSchema`（非法 → `parse`，不写库）；`scheduledAt = 当前 + 1 天`（`REVIEW_INTERVALS_DAYS[0]`）；source 不存在 → `validation`；taskType 默认 skill=transfer / expression=rewrite，用户可显式指定；去重 ① 源对象已有 pending 任务 → 返回现有（不调 AI）；② AI 产出 promptZh 与已有任务完全相同 → 返回现有；IPC `review:generate-task`（`reviewTaskHandlers`）+ 错误档案 Drawer「生成复习任务」按钮。
 
 验收标准：
 
-- 保存一个知识点后可以生成任务。
-- 新任务默认状态为 pending。
-- 任务包含中文场景和参考答案。
+- 保存一个知识点后可以生成任务。（`tests/reviewTaskService.test.ts`：skill/expression 生成、scheduledAt、默认 taskType、去重×2、AI 非法→parse、源不存在→validation）
+- 新任务默认状态为 pending。（同上：`status === 'pending'`）
+- 任务包含中文场景和参考答案。（同上：`context` + `referenceAnswer`；`rowToTaskView` keywords 解析）
 
 ---
 

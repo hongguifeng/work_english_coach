@@ -32,6 +32,36 @@ export type ReviewGenerationResult = {
   referenceAnswer: string;
 };
 
+/**
+ * T028：复习任务生成入参（IPC 边界再经 Zod 校验）。
+ * - skill 源：id 可以是 skills 主键或 skillKey（错误档案页持有 skillKey）；
+ * - expression 源：id 必须是 expressions 主键。
+ */
+export type ReviewGenerateTaskInput = {
+  source: 'skill' | 'expression';
+  id: string;
+  /** 默认：skill→'transfer'（换场景迁移） / expression→'rewrite'（改写） */
+  taskType?: ReviewTaskType;
+};
+
+/**
+ * T028：生成结果（IPC 返回给渲染进程的视图模型）。
+ * `created=false` 表示该知识点/表达已有待完成任务（去重，返回现有任务）。
+ */
+export type ReviewTaskGeneratedView = {
+  created: boolean;
+  task: {
+    id: string;
+    taskType: ReviewTaskType;
+    promptZh: string;
+    context: string | null;
+    keywords: string[];
+    referenceAnswer: string;
+    status: ReviewTaskStatus;
+    scheduledAt: string;
+  };
+};
+
 /** AI 对复习答案的评价（docs/04 §7：最多 3 条反馈） */
 export type ReviewEvaluation = {
   coreMeaningCorrect: boolean;

@@ -56,6 +56,11 @@ export class SkillRepository {
     return toResult(() => this.db.select().from(skills).where(eq(skills.skillKey, skillKey)).get() ?? null);
   }
 
+  /** 按主键 id 查询（T028 复习任务生成用）。 */
+  getById(id: string): Result<SkillRow | null> {
+    return toResult(() => this.db.select().from(skills).where(eq(skills.id, id)).get() ?? null);
+  }
+
   list(category?: IssueCategory): Result<SkillRow[]> {
     return toResult(() => {
       const base = this.db.select().from(skills);
