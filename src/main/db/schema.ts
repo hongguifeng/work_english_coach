@@ -8,13 +8,14 @@
 //   由 repository 序列化/反序列化（带校验）。
 // - 布尔值用 integer(0/1)（Drizzle boolean mode）。
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import type {
-  Audience,
-  IssueCategory,
-  IssueSeverity,
-  SourceType,
-  Tone,
+import {
+  type Audience,
+  type IssueCategory,
+  type IssueSeverity,
+  type SourceType,
+  type Tone,
 } from '../../shared/types/ai';
+import type { ReviewTaskType } from '../../shared/types/review';
 
 /** 11 类错误分类（docs/04 §2.5.3） */
 const ISSUE_CATEGORIES = [
@@ -133,9 +134,7 @@ export const reviewTasks = sqliteTable(
   'review_tasks',
   {
     id: text('id').primaryKey(),
-    taskType: text('taskType', { enum: ['rewrite', 'transfer', 'correction', 'speaking'] })
-      .$type<'rewrite' | 'transfer' | 'correction' | 'speaking'>()
-      .notNull(),
+    taskType: text('taskType').$type<ReviewTaskType>().notNull(),
     skillId: text('skillId').references(() => skills.id),
     expressionId: text('expressionId').references(() => expressions.id),
     promptZh: text('promptZh').notNull(),

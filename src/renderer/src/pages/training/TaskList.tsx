@@ -2,10 +2,11 @@ import { Tag } from 'antd';
 import type { ReviewTask, ReviewTaskType } from '../../../../shared/types/review';
 
 export const TASK_TYPE_LABEL: Record<ReviewTaskType, string> = {
-  rewrite: '场景写作',
-  transfer: '句型迁移',
   correction: '错误纠正',
-  speaking: '口语任务（二期）',
+  transfer: '句型迁移',
+  rewrite: '场景写作',
+  free: '自由输出',
+  oral: '口语表达',
 };
 
 interface TaskListProps {

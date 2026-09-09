@@ -828,19 +828,30 @@ npm run db:migrate
 
 ## T030：实现复习答题界面
 
-- [ ] 默认不展示答案。
-- [ ] 支持填写英文答案。
-- [ ] 支持显示关键词提示。
-- [ ] 支持显示参考答案。
-- [ ] 记录 usedHint。
-- [ ] 记录 revealedAnswer。
-- [ ] 防止重复提交。
+- [x] 默认不展示答案。
+- [x] 支持填写英文答案。
+- [x] 支持显示关键词提示。
+- [x] 支持显示参考答案。
+- [x] 记录 usedHint。
+- [x] 记录 revealedAnswer。
+- [x] 防止重复提交。
 
 验收标准：
 
-- 用户可以先提交自己的答案。
-- 提交前不会默认显示参考答案。
-- 使用提示后数据记录正确。
+- 用户可以先提交自己的答案。✓（TextArea + 提交按钮；空白答案被 buildEvaluateInput 拦截）
+- 提交前不会默认显示参考答案。✓（参考答案仅点击「显示参考答案」后以 Alert 展示，且该动作置 revealed=true）
+- 使用提示后数据记录正确。✓（「使用提示」置 usedHint=true，提交时如实传入 buildEvaluateInput → EvaluateReviewInput.usedHint/revealedAnswer，7 个单测覆盖）
+
+实现说明：
+
+- `src/shared/types/review.ts`：`ReviewTask` 视图补 `skillId?`/`expressionId?`；新增 `TaskSession`（answer/usedHint/revealed/loading/evaluation）+ `createTaskSession()` + `EvaluateReviewInput`（T031 评价入参，含 userAnswer/usedHint/revealedAnswer）。
+- `src/shared/logic/evaluateInput.ts`（新，纯逻辑）：`buildEvaluateInput(task, answer, usedHint, revealed)` → zod 校验（userAnswer trim 后 ≥1 字符；taskType 限 5 值域）→ `{ok:true,data}` / `{ok:false,error}`（不抛异常，UI 展示错误）。
+- `src/shared/constants/review.ts`（新）：`REVIEW_TASK_TYPES` 5 题型权威常量（docs/07 §5.2：correction/transfer/rewrite/free/oral）；aiSchemas 与 evaluateInput 共用。
+- 题型值域统一：shared 类型联合、aiSchemas 生成 schema、review_tasks 表 `$type<ReviewTaskType>`（SQL 本身是 text 无 CHECK，无需迁移）全部对齐 5 值；mockReview/TaskList 同步。
+- `src/renderer/src/pages/TrainingPage.tsx`：答题界面 —— 默认不展示参考答案；「使用提示」显示关键词并记 usedHint；「显示参考答案」显示 Alert 并记 revealed；提交前 buildEvaluateInput 校验（空白/非法 → 行内错误，不发请求）；防重复提交（loading 或已有评价时提交禁用）；提交后展示 mock 评价（T031 换真实 AI）+ 你的答案/参考答案/改进版 + flags 回显；跳过/下一题本地切换（T031 持久化）。
+- 评价仍是 mock（mockEvaluate）——真实 AI 评价与 review_attempt 持久化在 T031。
+
+测试：`tests/evaluateInput.test.ts`（7：有效透传+trim / 空答案 / 纯空白 / usedHint 记录 / revealedAnswer 记录 / 双 flags / free 题型透传）。全量 187/187，tsc 0，ESLint 0，build 通过。
 
 ---
 

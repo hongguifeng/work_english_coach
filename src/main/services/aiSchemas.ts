@@ -7,7 +7,11 @@
 //   绝不把 Zod 技术细节或原始异常抛给上层，也绝不让非法输入导致崩溃。
 // - 字段名与值域严格对齐 docs/04（见 shared/types/ai.ts、review.ts）。
 import { z } from 'zod';
+import { REVIEW_TASK_TYPES } from '../../shared/constants/review';
 import { err, ok } from '../../shared/types/app';
+
+// 复用 shared 权威常量（5 题型，docs/07 §5.2）；保留 re-export 供 aiPrompts/reviewTaskHandlers
+export { REVIEW_TASK_TYPES };
 import type { Result } from '../../shared/types/app';
 import type {
   AnalyzeDraftInput,
@@ -36,8 +40,6 @@ export const ISSUE_CATEGORIES = [
 ] as const;
 
 export const ISSUE_SEVERITIES = ['error', 'suggestion', 'tone_risk', 'unclear'] as const;
-
-export const REVIEW_TASK_TYPES = ['rewrite', 'transfer', 'correction', 'speaking'] as const;
 
 // —— 子对象 Schema ——
 const analysisIssueSchema: z.ZodType<{

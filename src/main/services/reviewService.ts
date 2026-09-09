@@ -30,7 +30,7 @@ function safeStringArray(raw: string | null): string[] {
   return [];
 }
 
-/** 把任务行转为 UI 视图模型（keywords JSON → 数组；context 空 → 空串）。 */
+/** 把任务行转为 UI 视图模型（keywords JSON → 数组；context 空 → 空串；来源 id 可选）。 */
 function rowToUiTask(row: ReviewTaskRow): ReviewTask {
   return {
     id: row.id,
@@ -41,6 +41,8 @@ function rowToUiTask(row: ReviewTaskRow): ReviewTask {
     referenceAnswer: row.referenceAnswer,
     status: row.status,
     scheduledAt: row.scheduledAt,
+    ...(row.skillId ? { skillId: row.skillId } : {}),
+    ...(row.expressionId ? { expressionId: row.expressionId } : {}),
   };
 }
 

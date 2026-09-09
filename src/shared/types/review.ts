@@ -3,7 +3,7 @@
  * 评价规则见 docs/04 §7）。
  */
 
-export type ReviewTaskType = 'rewrite' | 'transfer' | 'correction' | 'speaking';
+export type ReviewTaskType = 'correction' | 'transfer' | 'rewrite' | 'free' | 'oral';
 
 export type ReviewTaskStatus = 'pending' | 'completed' | 'skipped';
 
@@ -18,6 +18,9 @@ export type ReviewTask = {
   status: ReviewTaskStatus;
   /** ISO 时间（调度时间） */
   scheduledAt: string;
+  /** 来源（可选）：错题（skills）或表达（expressions）——训练页用于区分“错题复习/表达复习” */
+  skillId?: string;
+  expressionId?: string;
 };
 
 /**
@@ -95,3 +98,26 @@ export type TaskSession = {
   loading: boolean;
   evaluation: ReviewEvaluation | null;
 };
+
+/**
+ * T030/T031：复习答题提交输入（docs/07 §5.3 评价 prompt 输入 + review_attempt 记录字段）。
+ * `userAnswer`/`usedHint`/`revealedAnswer` 来自答题界面（T030）；其余来自任务本身。
+ */
+export interface EvaluateReviewInput {
+  taskType: ReviewTaskType;
+  promptZh: string;
+  context: string;
+  keywords: string[];
+  referenceAnswer: string;
+  /** 用户本次作答（英文，≥1 个非空白字符）。 */
+  userAnswer: string;
+  /** 作答前是否使用了关键词提示（如实记录，影响掌握度判断）。 */
+  usedHint: boolean;
+  /** 作答前是否查看了参考答案（如实记录）。 */
+  revealedAnswer: boolean;
+}
+
+/** 新建/重置一个题目会话（T030 答题界面初始状态：未用提示、未看答案、无评价）。 */
+export function createTaskSession(): TaskSession {
+  return { answer: '', usedHint: false, revealed: false, loading: false, evaluation: null };
+}
