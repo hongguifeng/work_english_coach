@@ -6,6 +6,7 @@ import type { DataChangedEvent } from '../shared/types/data';
 import type { Result } from '../shared/types/app';
 import type { AiSettings } from '../shared/types/settings';
 import type { AnalyzeDraftInput, AnalyzeDraftResult } from '../shared/types/ai';
+import type { SaveCorrectionPayload, SaveCorrectionSummary } from '../shared/types/saveResult';
 
 /**
  * Preload 入口（T004 / T005 / T012 / T017）
@@ -40,6 +41,9 @@ const desktopApi: DesktopApi = {
     invoke<AnalyzeDraftResult>('ai:analyze-draft', input, requestId),
   aiAnalyzeDraftCancel: (requestId: string) => invoke<boolean>('ai:analyze-draft-cancel', requestId),
   clipboardWrite: (text: string) => invoke<boolean>('clipboard:write', text),
+  // T025：保存纠错结果（主进程在 IPC 边界重新 Zod 校验后写库）。
+  saveAnalysisResult: (payload: SaveCorrectionPayload) =>
+    invoke<SaveCorrectionSummary>('result:save', payload),
   onDataChanged: (cb) => {
     const listener = (
       _e: IpcRendererEvent,

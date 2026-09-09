@@ -30,14 +30,18 @@ function humanMessage(code: string, message: string | null): string {
 }
 
 /**
- * 工作区（T008 / T022）：左侧表单 + 右侧结果区。
+ * 工作区（T008 / T022 / T025）：左侧表单 + 右侧结果区。
  * 提交走 IPC `ai:analyze-draft`（主进程调 AI + Zod 校验）；支持取消与重试。
- * T024 将把「保存并生成复习」接入数据库。
+ * T025：「确认并保存」调 `result:save`，把样本+错误+知识点（+可选表达）写入 SQLite。
  */
 export default function WorkspacePage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalyzeDraftResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // T025：保存相关 UI 状态
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveExpression, setSaveExpression] = useState(true);
 
   // 仅用于取消/重试的内部状态；用 ref 避免额外 re-render。
   const lastSubmitRef = useRef<DraftFormSubmit | null>(null);
@@ -53,6 +57,9 @@ export default function WorkspacePage() {
     setLoading(true);
     setResult(null);
     setError(null);
+    setSaved(false);
+    setSaving(false);
+    setSaveExpression(true);
     const r = await window.desktopAPI.aiAnalyzeDraft(submit.input, rid);
     if (r.ok) {
       setResult(r.data);
@@ -71,9 +78,26 @@ export default function WorkspacePage() {
     if (s) void handleSubmit(s);
   }, [handleSubmit]);
 
-  const handleConfirm = useCallback(() => {
-    message.info('保存原文与生成复习任务将在 T024 接入数据库后生效');
-  }, []);
+  const handleConfirm = useCallback(async () => {
+    const submit = lastSubmitRef.current;
+    if (!submit || result === null || saved || saving) return;
+    setSaving(true);
+    const r = await window.desktopAPI.saveAnalysisResult({
+      input: submit.input,
+      result,
+      saveOriginal: submit.saveOriginal,
+      saveExpression,
+    });
+    setSaving(false);
+    if (r.ok) {
+      setSaved(true);
+      const parts = ['样本', `${r.data.issueCount} 个问题`, '重点知识点'];
+      if (r.data.expressionId !== null) parts.push('表达');
+      message.success(`已保存：${parts.join(' + ')}`);
+    } else {
+      message.error(humanMessage(r.error.code, r.error.message));
+    }
+  }, [result, saved, saving, saveExpression]);
 
   return (
     <div>
@@ -92,7 +116,11 @@ export default function WorkspacePage() {
             loading={loading}
             result={result}
             error={error}
-            onConfirm={handleConfirm}
+            saved={saved}
+            saving={saving}
+            saveExpression={saveExpression}
+            onConfirm={() => void handleConfirm()}
+            onToggleSaveExpression={setSaveExpression}
             onCancel={loading ? handleCancel : undefined}
             onRetry={handleRetry}
           />

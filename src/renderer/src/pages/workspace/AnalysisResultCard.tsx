@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Card, Descriptions, Empty, Space, Tag, Button, Typography } from 'antd';
+import { Card, Checkbox, Descriptions, Empty, Space, Tag, Button, Typography } from 'antd';
 import type { AnalyzeDraftResult } from '../../../../shared/types/ai';
 import { CATEGORY_LABELS } from '../../../../shared/constants/issues';
 
@@ -50,7 +50,14 @@ export interface AnalysisResultCardProps {
   result: AnalyzeDraftResult | null;
   loading: boolean;
   error: string | null;
+  /** 当前结果是否已保存（确认按钮禁用并变「已保存」）（T025） */
+  saved?: boolean;
+  /** 保存中（确认按钮 loading）（T025） */
+  saving?: boolean;
+  /** 是否勾选「保存自然表达版到表达库」（默认开）（T025） */
+  saveExpression?: boolean;
   onConfirm?: () => void;
+  onToggleSaveExpression?: (checked: boolean) => void;
   onCancel?: () => void;
   onRetry?: () => void;
 }
@@ -59,7 +66,11 @@ export function AnalysisResultCard({
   result,
   loading,
   error,
+  saved = false,
+  saving = false,
+  saveExpression = true,
   onConfirm = () => {},
+  onToggleSaveExpression = () => {},
   onCancel = () => {},
   onRetry = () => {},
 }: AnalysisResultCardProps): JSX.Element {
@@ -168,9 +179,16 @@ export function AnalysisResultCard({
         </Space>
       </Card>
 
-      <Space>
-        <Button type="primary" onClick={onConfirm}>
-          确认并保存
+      <Space wrap align="center">
+        <Checkbox
+          checked={saveExpression}
+          disabled={saved || saving}
+          onChange={(e) => onToggleSaveExpression(e.target.checked)}
+        >
+          把自然表达版保存到表达库
+        </Checkbox>
+        <Button type="primary" onClick={onConfirm} loading={saving} disabled={saved}>
+          {saved ? '已保存' : '确认并保存'}
         </Button>
         <Button onClick={onRetry}>重试</Button>
         <Button onClick={onCancel}>取消</Button>

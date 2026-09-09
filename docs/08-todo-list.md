@@ -720,18 +720,20 @@ npm run db:migrate
 
 ## T025：实现保存纠错结果
 
-- [ ] 保存 communication_sample。
-- [ ] 保存 detected_issues。
-- [ ] 去重或复用已有 skill。
-- [ ] 根据设置决定是否保存原文。
-- [ ] 支持保存表达。
-- [ ] 支持保存重点知识点。
+- [x] 保存 communication_sample。
+- [x] 保存 detected_issues。
+- [x] 去重或复用已有 skill。
+- [x] 根据设置决定是否保存原文。
+- [x] 支持保存表达。
+- [x] 支持保存重点知识点。
 
 验收标准：
 
 - 用户主动保存后数据进入 SQLite。
 - 关闭应用后仍能查看。
 - 不保存原文时，知识点仍然可以用于复习。
+
+> 完成（2026-07-25）：新增 `src/shared/types/saveResult.ts`（`SaveCorrectionPayload`/`SaveCorrectionSummary`）、`src/main/services/saveResultService.ts`（样本+issues 原子保存 → skill 按 skillKey 去重 upsert（category 从最严重 issue 推导）→ 可选保存自然表达版为 expression）、`src/main/ipc/resultHandlers.ts`（`result:save`，边界 Zod 二次校验）。`AnalysisResultCard` 增加「把自然表达版保存到表达库」勾选框与保存状态/按钮态；`WorkspacePage` 接入真实保存。新增 `tests/saveResultService.test.ts`（6 例）。137/137 单测通过；typecheck/lint/build/smoke 全绿。CDP E2E：真实 AI 分析（gpt-5.5）→ 保存成功（样本+3 issues+skill+expression）；非法载荷 → validation；saveOriginal=false 分支原文 NULL 但知识点保留；同 skillKey 二次保存去重。关闭应用后用 node:sqlite 直读 DB 文件验证持久化（7 samples/9 issues/2 skills/4 expressions）。注：测试服务器模型 qwen3.8-27b 已下线，改用 gpt-5.5（偶发 parse 失败属模型不稳定，app 已优雅失败并重试）。
 
 ---
 

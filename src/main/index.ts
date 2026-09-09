@@ -10,6 +10,7 @@ import { registerAppIpc } from './ipc/appHandlers';
 import { registerAiConfigIpc } from './ipc/aiConfigHandlers';
 import { registerDataIpc } from './ipc/dataHandlers';
 import { registerClipboardIpc } from './ipc/clipboardHandlers';
+import { registerResultIpc } from './ipc/resultHandlers';
 import { registerSecretIpc } from './ipc/secretHandlers';
 import { devLog } from './log';
 
@@ -122,6 +123,7 @@ if (!gotTheLock) {
     registerAiConfigIpc();
     registerDataIpc();
     registerClipboardIpc();
+    registerResultIpc();
     registerSecretIpc();
     mainWindow = createMainWindow();
   });

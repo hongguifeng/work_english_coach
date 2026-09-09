@@ -2,6 +2,7 @@ import type { Result } from './app';
 import type { AiSettings } from './settings';
 import type { DataChangedEvent, DeleteSummary, ExportResult } from './data';
 import type { AnalyzeDraftInput, AnalyzeDraftResult } from './ai';
+import type { SaveCorrectionPayload, SaveCorrectionSummary } from './saveResult';
 
 /**
  * Preload 暴露给渲染进程的最小 API 接口（T012）
@@ -50,6 +51,12 @@ export interface DesktopApi {
   aiAnalyzeDraftCancel(requestId: string): Promise<Result<boolean>>;
   /** 把文本写入系统剪贴板（成功 ok(true)；异常 storage 错误）（T024）。 */
   clipboardWrite(text: string): Promise<Result<boolean>>;
+  /**
+   * 用户确认纠错结果后保存到数据库：样本 + 错误列表 + 重点知识点（upsert），
+   * 可选把自然表达版存为表达。隐私：saveOriginal=false 时不写入原文
+   * （知识点/表达仍可用于复习）。非法载荷 → validation（T025）。
+   */
+  saveAnalysisResult(payload: SaveCorrectionPayload): Promise<Result<SaveCorrectionSummary>>;
   /**
    * 订阅主进程的数据变更广播（目前触发点：删除全部数据）。
    * 返回取消订阅函数（用于 React useEffect 清理）（T017）。
