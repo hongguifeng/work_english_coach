@@ -1,7 +1,8 @@
 // T011：设置页面。
 // - 非密钥设置：Zod 校验后保存到页内 Zustand（mock 持久化 localStorage）；T016 起切换 IPC + SQLite settings 表
 // - API Key：密码输入框，仅内存保存，不落盘（T018 起由 DPAPI 系统凭据存储接管）
-// - 测试连接：mock（T021 接入真实调用）；导出数据/删除全部数据：mock（T012+ 接入数据库后生效）
+// - 测试连接：mock（T021 接入真实调用）
+// - 导出数据/删除全部数据：已接入真实 IPC + SQLite（T017）；删除后向渲染进程广播 data:changed
 import { useState } from 'react';
 import {
   Alert,
@@ -42,6 +43,8 @@ export default function SettingsPage() {
     redactEnabled: boolean;
   }>();
   const [test, setTest] = useState<TestResult>({ kind: 'idle' });
+  const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handleSave = (values: {
     baseUrl: string;
@@ -210,23 +213,44 @@ export default function SettingsPage() {
           <Typography.Title level={5}>数据管理</Typography.Title>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
             <Button
-              onClick={() =>
-                message.info('暂无数据可导出（T012 接入数据库后生效）')
-              }
+              loading={exporting}
+              onClick={async () => {
+                setExporting(true);
+                const res = await window.desktopAPI.dataExport();
+                setExporting(false);
+                if (!res.ok) {
+                  message.error(res.error.message);
+                  return;
+                }
+                if (res.data.skipped) {
+                  message.info('已取消导出');
+                  return;
+                }
+                message.success(`已导出：${res.data.path}`);
+              }}
             >
               导出数据
             </Button>
             <Popconfirm
               title="确定要删除全部数据吗？"
-              description="将删除所有草稿、学习记录、表达库与复习任务，且不可恢复。"
+              description="将删除所有草稿、学习记录、表达库与复习任务，且不可恢复。API Key 不受影响。"
               okText="确认删除"
-              okButtonProps={{ danger: true }}
+              okButtonProps={{ danger: true, loading: deleting }}
               cancelText="取消"
-              onConfirm={() =>
-                message.info('数据库尚未接入（T012+），本次未执行删除')
-              }
+              onConfirm={async () => {
+                setDeleting(true);
+                const res = await window.desktopAPI.dataDeleteAll();
+                setDeleting(false);
+                if (!res.ok) {
+                  message.error(res.error.message);
+                  return;
+                }
+                message.success(
+                  `已删除 ${res.data.total} 条学习数据（设置已保留）`,
+                );
+              }}
             >
-              <Button danger>删除全部数据</Button>
+              <Button danger loading={deleting}>删除全部数据</Button>
             </Popconfirm>
           </div>
 

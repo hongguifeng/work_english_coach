@@ -14,6 +14,8 @@ interface ExpressionStore {
   update: (id: number, patch: UpdateExpressionInput) => void;
   archive: (id: number) => void;
   restore: (id: number) => void;
+  /** 清空本地列表（T017：删除全部数据后由 data:changed 触发；T026 起改为从 DB 重新拉取）。 */
+  reset: () => void;
 }
 
 export const useExpressionStore = create<ExpressionStore>()((set, get) => ({
@@ -56,5 +58,9 @@ export const useExpressionStore = create<ExpressionStore>()((set, get) => ({
         item.id === id ? { ...item, status: 'active' } : item,
       ),
     });
+  },
+
+  reset: () => {
+    set({ items: [], nextId: 100 });
   },
 }));

@@ -6,6 +6,8 @@ import { runMigrations } from './db/migrations';
 
 import { createMainWindow } from './windows/createMainWindow';
 import { registerAppIpc } from './ipc/appHandlers';
+import { registerDataIpc } from './ipc/dataHandlers';
+import { devLog } from './log';
 
 // 显式固定应用名（未打包/探针场景下 Electron 会回退为 "Electron"，
 // 导致 userData 落在 %APPDATA%/Electron）；打包后 productName 同名，行为一致。
@@ -112,6 +114,7 @@ if (!gotTheLock) {
     }
     bootDatabase();
     registerAppIpc();
+    registerDataIpc();
     mainWindow = createMainWindow();
   });
 }
@@ -150,13 +153,7 @@ process.on('uncaughtException', (error) => {
 });
 
 const isDev = process.env.ELECTRON_RENDERER_URL !== undefined;
-export { isDev };
+export { isDev, devLog };
 
-/** 开发期日志：未打包时才输出（构建后 electron . 运行也算开发） */
-export function devLog(...args: unknown[]): void {
-  if (!app.isPackaged) {
-    console.log('[dev]', ...args);
-  }
-}
 export const appRoot = (): string =>
   app.isPackaged ? process.resourcesPath : join(app.getAppPath());

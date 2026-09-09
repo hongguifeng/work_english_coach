@@ -512,19 +512,27 @@ npm run db:migrate
 
 ---
 
-## T017：实现数据导出和删除
+## T017：实现数据导出和删除（2026-07-25 完成）
 
-- [ ] 实现全部学习数据导出为 JSON。
-- [ ] 导出时不包含 API Key。
-- [ ] 实现删除全部数据。
-- [ ] 删除操作需要二次确认。
-- [ ] 删除后页面状态自动刷新。
+- [x] 实现全部学习数据导出为 JSON（`dataService.exportLearningData`，7 张表；JSON 数组字段解码为真实 `string[]`；含 `meta.app/version`）。
+- [x] 导出时不包含 API Key（结构性排除——Key 只存 DPAPI，从不入库，导出读库，故 Key 不可能进入 JSON）。
+- [x] 实现删除全部数据（`dataService.deleteAllLearningData`，6 张学习表按 FK 安全序在单事务内清空，保留 settings）。
+- [x] 删除操作需要二次确认（Settings 页 Popconfirm「此操作不可恢复，确认删除？→确认删除/取消」）。
+- [x] 删除后页面状态自动刷新（main 广播 `data:changed`，renderer `useDataChanged` hook → 表达库 store `reset()`）。
 
 验收标准：
 
-- 导出文件可以被重新读取。
-- 导出文件不包含 API Key。
-- 删除后数据库中的学习数据为空。
+- [x] 导出文件可以被重新读取（`data:export` 经 `dialog.showSaveDialog` 选路径 + `writeFile` 落盘 JSON；返回 `ExportResult{path,skipped}`，用户取消则 `skipped=true`）。
+- [x] 导出文件不包含 API Key（`tests/dataService.test.ts` 断言导出 JSON 串不含 API Key，且 API Key 即便被塞进 ai 设置也不导出）。
+- [x] 删除后数据库中的学习数据为空（`tests/dataService.test.ts` 断言 6 表计数为 0、settings 保留；E2E：`scripts/seed-demo.mjs` 种入真实 DB → 启动 dev 应用经 CDP/agent-browser 点击「删除全部数据」→确认→界面出现「已删除 6 条学习数据（设置已保留）」→`node:sqlite` 复核 6 表=0、settings=1）。
+
+完成说明：
+
+- 新增：`src/shared/types/data.ts`（`ExportResult`/`DeleteSummary`/`DataChangedEvent`）、`src/main/services/dataService.ts`（electron 无关，接收 `AppMeta`，便于测试注入常量元信息）、`src/main/ipc/dataHandlers.ts`（`registerDataIpc`：`data:export`/`data:delete-all`，删除后广播 `data:changed`）、`src/main/log.ts`（把 `devLog`/`isDev` 抽成独立模块，避免 index↔ipc 循环依赖）、`src/renderer/src/lib/useDataChanged.ts`（React hook，ref 持有最新回调、`[]` 只订阅一次）、`tests/dataService.test.ts`（4 用例）、`scripts/seed-demo.mjs`（E2E 种子：用 `node:sqlite` 直接写真实 DB，better-sqlite3 是 Electron ABI 无法在普通 Node 加载）。
+- 修改：`src/preload/index.ts`（+`dataExport`/`dataDeleteAll`/`onDataChanged`，onDataChanged 用 `ipcRenderer.on` 并返回解订阅函数，仍不暴露完整 ipcRenderer）、`src/shared/types/desktopApi.ts`（补 3 个签名）、`src/main/index.ts`（app.whenReady 内 `registerDataIpc()`，改从 `./log` re-export `devLog`）、`src/renderer/src/pages/SettingsPage.tsx`（数据管理区由 mock 提示改为真实按钮：导出带 `loading`、删除带 Popconfirm+`loading`，成功/失败走 `message`，错误展示 `e.message`）、`src/renderer/src/pages/library/ExpressionStore.ts`（+`reset`）、`src/renderer/src/pages/LibraryPage.tsx`（挂载 `useDataChanged` → `reset`）。
+- 检查：`npx tsc --noEmit`(web)、`npx tsc -p tsconfig.node.json --noEmit` 均通过；ESLint 无错误；Vitest **48/48**（39 repositories + 5 reviewSchedule + 4 dataService）；`npx electron-vite build` 成功；`node scripts/smoke.mjs` 通过。
+- E2E（真实桌面应用）：`scripts/seed-demo.mjs` 向真实 DB 各表插入 1 行（+1 settings）→ `node scripts/dev.mjs -- --remote-debugging-port=9222` 启动 → agent-browser 经 CDP 连接 → 导航「设置」→点击「删除全部数据」→Popconfirm「确认删除」→界面出现「已删除 6 条学习数据（设置已保留）」→`node:sqlite` 复核 6 学习表=0、settings=1 → 关闭应用。导出/删除/刷新/广播全链路在真实 Electron 进程验证通过。
+- 说明：表达库/错误档案当前仍用 mock（真实 DB 持久化属 T026/T027）；本页 `useDataChanged→reset()` 为「删除后清空」的占位联动，T026 接入真实 store 后自动复用同一事件。
 
 ---
 

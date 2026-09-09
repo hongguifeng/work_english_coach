@@ -23,6 +23,7 @@ import type { SourceType } from '../../../shared/types/ai';
 import { useExpressionStore } from './library/ExpressionStore';
 import { ExpressionDetailModal } from './library/ExpressionDetailModal';
 import { ExpressionFormModal } from './library/ExpressionFormModal';
+import { useDataChanged } from '../lib/useDataChanged';
 
 type SceneFilter = 'all' | SourceType;
 type MasteryFilter = 'all' | MasteryLevel;
@@ -54,6 +55,11 @@ export default function LibraryPage() {
   const items = useExpressionStore((s) => s.items);
   const archive = useExpressionStore((s) => s.archive);
   const restore = useExpressionStore((s) => s.restore);
+
+  // T017：删除全部数据后主进程广播 data:changed，清空本地列表保持与 DB 一致。
+  useDataChanged(() => {
+    useExpressionStore.getState().reset();
+  });
 
   const [search, setSearch] = useState('');
   const [scene, setScene] = useState<SceneFilter>('all');
