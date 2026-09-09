@@ -9,7 +9,7 @@ export type ReviewTaskStatus = 'pending' | 'completed' | 'skipped';
 
 /** UI 用的复习任务视图模型（不含敏感内部字段） */
 export type ReviewTask = {
-  id: number;
+  id: string;
   taskType: ReviewTaskType;
   promptZh: string;
   context: string;
@@ -18,6 +18,19 @@ export type ReviewTask = {
   status: ReviewTaskStatus;
   /** ISO 时间（调度时间） */
   scheduledAt: string;
+};
+
+/**
+ * T029：今日任务查询结果。
+ * - tasks：已到期（scheduledAt <= 当前）且待完成的任务，
+ *   优先显示错题（关联知识点）其次到期表达，再按到期时间；
+ * - completedToday：今日已完成数（completedAt >= 今日 0:00）；
+ * - pending：tasks 数量（待完成）。
+ */
+export type TodayReviewView = {
+  tasks: ReviewTask[];
+  completedToday: number;
+  pending: number;
 };
 
 /**

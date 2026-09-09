@@ -13,7 +13,7 @@ import type {
   ExpressionStatus,
   UpdateExpressionInput,
 } from '../shared/types/library';
-import type { ReviewGenerateTaskInput, ReviewTaskGeneratedView } from '../shared/types/review';
+import type { ReviewGenerateTaskInput, ReviewTaskGeneratedView, TodayReviewView } from '../shared/types/review';
 
 /**
  * Preload 入口（T004 / T005 / T012 / T017）
@@ -67,6 +67,8 @@ const desktopApi: DesktopApi = {
   // skill 源的 id 可以是主键或 skillKey；去重时 created=false（已有待完成任务）。
   reviewGenerateTask: (input: ReviewGenerateTaskInput) =>
     invoke<ReviewTaskGeneratedView>('review:generate-task', input),
+  // T029：今日任务查询（到期且待完成，错题优先）+ 今日已完成数/待完成数。
+  reviewToday: () => invoke<TodayReviewView>('review:today'),
   onDataChanged: (cb) => {
     const listener = (
       _e: IpcRendererEvent,

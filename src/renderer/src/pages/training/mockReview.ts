@@ -13,10 +13,10 @@ export const TASK_TYPE_LABEL: Record<ReviewTaskType, string> = {
 
 const TODAY = new Date().toISOString();
 
-/** Mock 复习任务（T009 占位；T028-T032 替换为数据库查询） */
+/** Mock 复习任务（T009 占位；T029 起页面默认读库，此 mock 仅供单测/开发参考） */
 export const MOCK_REVIEW_TASKS: ReviewTask[] = [
   {
-    id: 1,
+    id: 't-mock-1',
     taskType: 'transfer',
     promptZh:
       '向客户说明：报告会比原计划晚一天交付，但质量会更有保障，请对方谅解。',
@@ -28,7 +28,7 @@ export const MOCK_REVIEW_TASKS: ReviewTask[] = [
     scheduledAt: TODAY,
   },
   {
-    id: 2,
+    id: 't-mock-2',
     taskType: 'correction',
     promptZh: '改正下面的句子：I have worked in this company since 3 years.',
     context: '面试自我介绍',
@@ -39,7 +39,7 @@ export const MOCK_REVIEW_TASKS: ReviewTask[] = [
     scheduledAt: TODAY,
   },
   {
-    id: 3,
+    id: 't-mock-3',
     taskType: 'rewrite',
     promptZh:
       '用英文告诉同事：你正在忙，请他稍后再问，你会在下午回复。',

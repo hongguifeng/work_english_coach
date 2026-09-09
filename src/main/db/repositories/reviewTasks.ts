@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, lte } from 'drizzle-orm';
+import { and, asc, desc, eq, lte, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import type { ReviewTaskStatus, ReviewTaskType } from '../../../shared/types/review';
 import type { Result } from '../../../shared/types/app';
@@ -104,6 +104,26 @@ export class ReviewTaskRepository {
         .get();
       if (!row) throw new Error('复习任务改期失败: ' + id);
       return row;
+    });
+  }
+
+  /**
+   * T029 — 统计某时间点之后完成的任务数（“今日已完成”计数）。
+   * sinceIso 为本地今日 0:00 的 ISO 时间。
+   */
+  countCompletedSince(sinceIso: string): Result<number> {
+    return toResult(() => {
+      const rows = this.db
+        .select({ n: sql<number>`count(*)` })
+        .from(reviewTasks)
+        .where(
+          and(
+            eq(reviewTasks.status, 'completed'),
+            sql`${reviewTasks.completedAt} >= ${sinceIso}`,
+          ),
+        )
+        .all();
+      return rows[0]?.n ?? 0;
     });
   }
 

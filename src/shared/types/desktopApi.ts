@@ -9,7 +9,7 @@ import type {
   ExpressionStatus,
   UpdateExpressionInput,
 } from './library';
-import type { ReviewGenerateTaskInput, ReviewTaskGeneratedView } from './review';
+import type { ReviewGenerateTaskInput, ReviewTaskGeneratedView, TodayReviewView } from './review';
 
 /**
  * Preload 暴露给渲染进程的最小 API 接口（T012）
@@ -89,6 +89,8 @@ export interface DesktopApi {
    * 返回 created=false 表示该来源已有待完成任务（去重，返回现有任务）。
    */
   reviewGenerateTask(input: ReviewGenerateTaskInput): Promise<Result<ReviewTaskGeneratedView>>;
+  /** T029：今日任务查询（到期且待完成，错题优先）+ 今日已完成数/待完成数。 */
+  reviewToday(): Promise<Result<TodayReviewView>>;
   /**
    * 订阅主进程的数据变更广播（目前触发点：删除全部数据）。
    * 返回取消订阅函数（用于 React useEffect 清理）（T017）。

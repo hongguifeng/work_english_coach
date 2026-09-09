@@ -809,18 +809,20 @@ npm run db:migrate
 
 ## T029：实现今日任务查询
 
-- [ ] 查询 scheduledAt <= 当前时间的任务。
-- [ ] 按优先级排序。
-- [ ] 优先显示错题。
-- [ ] 其次显示到期表达。
-- [ ] 显示今日完成数量。
-- [ ] 显示待完成数量。
+- [x] 查询 scheduledAt <= 当前时间的任务。（`reviewTasks.getDue(now)`：`status='pending' AND scheduledAt <= now`）
+- [x] 按优先级排序。（JS 侧：skillId 非空优先 → scheduledAt 早 → id）
+- [x] 优先显示错题。（skillId 非空 = 错题来源）
+- [x] 其次显示到期表达。（expressionId 任务其次）
+- [x] 显示今日完成数量。（`countCompletedSince(本地今日 0:00)` → `completedToday`）
+- [x] 显示待完成数量。（`pending = due.length`）
+
+实现说明：`src/main/services/reviewService.ts` `getTodayReview(repos, now?)`（纯函数，`Result<TodayReviewView>`，视图防御：context null→''、非法 keywords→[]）；IPC `review:today`（同步 DB 查询，无 AI）；训练页改为真实数据（头部「待完成 N / 已完成 M」，useDataChanged 刷新，加载失败显示错误 + 重试）。
 
 验收标准：
 
-- 今日训练页面可以显示真实数据库任务。
-- 没有任务时显示空状态。
-- 时区处理正确。
+- [x] 今日训练页面可以显示真实数据库任务。（TrainingPage 走 `review:today` IPC；180/180 测试含 6 个 getTodayReview 用例）
+- [x] 没有任务时显示空状态。（Empty「暂无今日任务」）
+- [x] 时区处理正确。（completedToday 以本地今日 0:00 为界；scheduledAt ISO 比较；测试用本地时区构造边界）
 
 ---
 

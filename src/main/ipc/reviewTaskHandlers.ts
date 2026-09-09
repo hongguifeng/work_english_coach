@@ -2,6 +2,7 @@
 //
 // 暴露的渠道：
 //   review:generate-task  从知识点/表达生成一道新练习（调 AI）→ 写入 review_tasks
+//   review:today          今日任务查询（到期且待完成，错题优先）+ 今日已完成/待完成数
 //
 // 安全与规则（docs/02、docs/06、docs/08 T028）：
 // - 入参在 IPC 边界用 Zod 校验；非法 → validation 错误。
@@ -12,12 +13,13 @@ import { ipcMain } from 'electron';
 import { z } from 'zod';
 import { err } from '../../shared/types/app';
 import type { ErrResult, Result } from '../../shared/types/app';
-import type { ReviewGenerateTaskInput, ReviewTaskGeneratedView } from '../../shared/types/review';
+import type { ReviewGenerateTaskInput, ReviewTaskGeneratedView, TodayReviewView } from '../../shared/types/review';
 import { REVIEW_TASK_TYPES } from '../services/aiSchemas';
 import { getDatabase } from '../db/database';
 import { classifyError } from '../db/errors';
 import { createRepositories } from '../db/repositories';
 import { SettingsRepository } from '../db/repositories/settings';
+import { getTodayReview } from '../services/reviewService';
 import { generateReviewTask, rowToTaskView } from '../services/reviewTaskService';
 import { getSharedSecretBackend } from '../services/secretService';
 import { devLog } from '../log';
@@ -61,4 +63,16 @@ export function registerReviewTaskIpc(): void {
       }
     },
   );
+
+  // T029：今日任务查询（同步：纯 DB 查询，无 AI）。
+  ipcMain.handle('review:today', async (): Promise<Result<TodayReviewView>> => {
+    try {
+      const r = getTodayReview(createRepositories(getDatabase()));
+      if (r.ok) devLog(`review:today -> ok (pending=${r.data.pending}, completedToday=${r.data.completedToday})`);
+      return r;
+    } catch (e) {
+      devLog('review:today fail:', e instanceof Error ? e.message : String(e));
+      return errFromUnknown(e);
+    }
+  });
 }

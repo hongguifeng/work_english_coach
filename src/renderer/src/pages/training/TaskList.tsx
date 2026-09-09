@@ -10,8 +10,8 @@ export const TASK_TYPE_LABEL: Record<ReviewTaskType, string> = {
 
 interface TaskListProps {
   tasks: ReviewTask[];
-  selectedId: number | null;
-  onSelect: (id: number) => void;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
 }
 
 /** 今日任务列表（T009）：状态点 + 类型 + 题干摘要 */
