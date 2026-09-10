@@ -73,33 +73,30 @@ function buildRequestBody(
 ): string {
   if (endpoint === 'responses') {
     // Copilot 参考客户端要求 SSE 流式；其它 OpenAI 兼容服务走非流式 JSON
-    // 思考强度：/responses 标准字段是 reasoning.effort（vLLM / OpenAI 都认）
+    // 思考强度：/responses 标准字段是 reasoning.effort（vLLM / OpenAI 都认）；
+    // 关闭时也显式发 none，让服务端确定关闭思考而不是走默认值
     return JSON.stringify({
       model: config.model,
       input: messages.map((message) => ({
         role: message.role,
         content: message.content,
       })),
-      ...(config.provider === 'githubCopilot'
-        ? { reasoning: { effort: config.reasoningEffort ?? 'none' }, stream: true }
-        : config.reasoningEffort && config.reasoningEffort !== 'none'
-          ? { reasoning: { effort: config.reasoningEffort } }
-          : {}),
+      reasoning: { effort: config.reasoningEffort ?? 'none' },
+      ...(config.provider === 'githubCopilot' ? { stream: true } : {}),
     });
   }
-  // 思考强度：/chat/completions 标准字段是 reasoning_effort（vLLM / OpenAI 都认）
+  // 思考强度：/chat/completions 标准字段是 reasoning_effort（vLLM / OpenAI 都认）；
+  // 关闭时也显式发 none
   return JSON.stringify({
     model: config.model,
     messages: [...messages],
+    reasoning_effort: config.reasoningEffort ?? 'none',
     ...(config.provider === 'githubCopilot'
       ? {
-          reasoning_effort: config.reasoningEffort ?? 'none',
           stream: true,
           stream_options: { include_usage: true },
         }
-      : config.reasoningEffort && config.reasoningEffort !== 'none'
-        ? { reasoning_effort: config.reasoningEffort }
-        : {}),
+      : {}),
   });
 }
 

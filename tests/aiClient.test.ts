@@ -134,12 +134,17 @@ describe('OpenAICompatibleClient', () => {
     expect(res.ok).toBe(true);
     if (res.ok) expect(res.data).toBe('pong');
     expect(lastUrl).toBe('http://127.0.0.1:12346/v1/responses');
-    const body = JSON.parse(String(lastInit?.body)) as { model: string; input: unknown[]; stream?: boolean; reasoning?: unknown };
+    const body = JSON.parse(String(lastInit?.body)) as {
+      model: string;
+      input: unknown[];
+      stream?: boolean;
+      reasoning?: { effort: string };
+    };
     expect(body.model).toBe('qwen3.8-27b');
     expect(body.input).toEqual(MESSAGES);
-    // 非 Copilot 的 responses 请求不走 SSE；reasoningEffort 为 none（缺省）时不带 reasoning
+    // 非 Copilot 的 responses 请求不走 SSE，但始终带 reasoning（缺省 none）
     expect(body.stream).toBeUndefined();
-    expect(body.reasoning).toBeUndefined();
+    expect(body.reasoning).toEqual({ effort: 'none' });
   });
 
   it('sends reasoning.effort on /responses when reasoningEffort is set (API Key provider)', async () => {
@@ -170,7 +175,7 @@ describe('OpenAICompatibleClient', () => {
     expect(body.stream).toBeUndefined();
   });
 
-  it('omits reasoning_effort on /chat/completions when reasoningEffort is none (API Key provider)', async () => {
+  it('sends reasoning_effort none explicitly on /chat/completions when reasoningEffort is none (API Key provider)', async () => {
     const client = new OpenAICompatibleClient({
       fetchImpl: mockFetchOnce(() => Promise.resolve(jsonResponse({ choices: [{ message: { content: 'pong' } }] }))),
     });
@@ -180,7 +185,7 @@ describe('OpenAICompatibleClient', () => {
     );
     expect(res.ok).toBe(true);
     const body = JSON.parse(String(lastInit?.body)) as { reasoning_effort?: string };
-    expect(body.reasoning_effort).toBeUndefined();
+    expect(body.reasoning_effort).toBe('none');
   });
 
   it('keeps API Key provider on /chat/completions when apiEndpoint is chatCompletions', async () => {
