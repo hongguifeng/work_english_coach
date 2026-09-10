@@ -207,7 +207,6 @@ export default function LibraryPage(): React.ReactElement {
   return (
     <div>
       <PageHeader
-        description="把 AI 纠错中沉淀的高频表达与手动整理的常用表达放在一起，随时查阅、复习、归档。"
         extra={
           <Space>
             <Segmented

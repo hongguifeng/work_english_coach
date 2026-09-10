@@ -11,7 +11,6 @@ import {
   Typography,
 } from 'antd';
 import { Link } from 'react-router-dom';
-import { PageHeader } from '../components/PageHeader';
 import { BoldText } from '../components/BoldText';
 import { CATEGORY_LABELS, SEVERITY_LABELS, SEVERITY_TAG_COLORS } from '../../../shared/constants/issues';
 import { stripBoldMarks } from '../../../shared/utils/bold';
@@ -185,7 +184,6 @@ export default function HistoryPage(): JSX.Element {
 
   return (
     <div>
-      <PageHeader description="查看之前每次工作英语检查的 AI 分析结果" />
       {error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} /> : null}
       {loading ? <Card><Spin /></Card> : records.length === 0 ? (
         <Card><Empty description={<span>还没有检查记录，先去<Link to="/">工作区</Link>检查一段英文。</span>} /></Card>

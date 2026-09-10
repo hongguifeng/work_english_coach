@@ -24,7 +24,6 @@ import {
   Typography,
 } from 'antd';
 import { ThunderboltOutlined } from '@ant-design/icons';
-import { PageHeader } from '../components/PageHeader';
 import {
   aiSettingsSchema,
   type CopilotModel,
@@ -317,10 +316,6 @@ export default function SettingsPage() {
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <PageHeader
-        description="AI 服务与数据管理。API Key 由系统凭据存储保管；AI 配置持久化到本地数据库；「测试连接」发起真实最小 AI 调用。"
-      />
-
       <Card>
         <Form
           form={form}

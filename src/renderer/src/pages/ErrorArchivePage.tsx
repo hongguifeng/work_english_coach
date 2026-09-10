@@ -17,7 +17,6 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import { PageHeader } from '../components/PageHeader';
 import { useDataChanged } from '../lib/useDataChanged';
 import {
   CATEGORY_LABELS,
@@ -144,9 +143,6 @@ export default function ErrorArchivePage() {
 
   return (
     <div>
-      <PageHeader
-        description="按知识点聚合的历史错误；掌握状态只由你的独立练习结果决定"
-      />
       <Space style={{ marginBottom: 16 }} wrap>
         <Select
           allowClear
