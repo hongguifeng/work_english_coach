@@ -74,6 +74,7 @@ function buildRequestBody(
         role: message.role,
         content: message.content,
       })),
+      reasoning: { effort: config.reasoningEffort ?? 'none' },
       stream: true,
     });
   }
@@ -81,7 +82,11 @@ function buildRequestBody(
     model: config.model,
     messages: [...messages],
     ...(config.provider === 'githubCopilot'
-      ? { stream: true, stream_options: { include_usage: true } }
+      ? {
+          reasoning_effort: config.reasoningEffort ?? 'none',
+          stream: true,
+          stream_options: { include_usage: true },
+        }
       : {}),
   });
 }

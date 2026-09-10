@@ -22,6 +22,7 @@ export const aiTimeoutSecondsSchema = z
   .int('超时时间必须为整数')
   .min(5, '最小 5 秒')
   .max(300, '最大 300 秒');
+export const aiReasoningEffortSchema = z.enum(['none', 'low', 'medium', 'high']);
 
 export const aiSettingsSchema = z.object({
   /** AI 凭据来源；缺失时兼容旧配置，按 API Key 处理。 */
@@ -32,6 +33,8 @@ export const aiSettingsSchema = z.object({
   model: aiModelSchema,
   /** 请求超时时间（秒） */
   timeoutSeconds: aiTimeoutSecondsSchema,
+  /** 推理强度；旧配置缺失时按 none 处理。 */
+  reasoningEffort: aiReasoningEffortSchema.optional(),
   /** 是否保存原始工作文本（用户数据可选择不保存） */
   saveOriginal: z.boolean(),
   /** 是否启用脱敏（发送前对人名、邮箱等做掩码） */
@@ -46,6 +49,7 @@ export interface AiConnectionTestInput {
   baseUrl: string;
   model: string;
   timeoutSeconds: number;
+  reasoningEffort?: z.infer<typeof aiReasoningEffortSchema>;
 }
 
 /** T042 测试连接成功结果：仅返回耗时（响应内容丢弃，不展示、不存储）。 */
@@ -68,6 +72,7 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   baseUrl: 'http://127.0.0.1:12346/v1',
   model: 'qwen3.8-27b',
   timeoutSeconds: 60,
+  reasoningEffort: 'none',
   saveOriginal: true,
   redactEnabled: true,
 };

@@ -70,6 +70,7 @@ export default function SettingsPage() {
     model: string;
     provider: 'apiKey' | 'githubCopilot';
     timeoutSeconds: number;
+    reasoningEffort: 'none' | 'low' | 'medium' | 'high';
     saveOriginal: boolean;
     redactEnabled: boolean;
   }>();
@@ -154,6 +155,7 @@ export default function SettingsPage() {
           baseUrl: r.data.baseUrl,
           model: r.data.model,
           timeoutSeconds: r.data.timeoutSeconds,
+          reasoningEffort: r.data.reasoningEffort ?? 'none',
           saveOriginal: r.data.saveOriginal,
           redactEnabled: r.data.redactEnabled,
         });
@@ -204,6 +206,7 @@ export default function SettingsPage() {
     baseUrl?: string;
     model?: string;
     timeoutSeconds: number;
+    reasoningEffort?: 'none' | 'low' | 'medium' | 'high';
     saveOriginal: boolean;
     redactEnabled: boolean;
   }) => {
@@ -213,6 +216,7 @@ export default function SettingsPage() {
       baseUrl: values.baseUrl?.trim() || ai.baseUrl,
       model: values.model?.trim() || ai.model,
       timeoutSeconds: values.timeoutSeconds,
+      reasoningEffort: values.reasoningEffort ?? 'none',
       saveOriginal: values.saveOriginal,
       redactEnabled: values.redactEnabled,
     });
@@ -246,7 +250,17 @@ export default function SettingsPage() {
       (form.getFieldValue('model') as string | undefined)?.trim() || ai.model;
     const timeoutSeconds =
       (form.getFieldValue('timeoutSeconds') as number | undefined) ?? ai.timeoutSeconds;
-    const r = await window.desktopAPI.aiTestConnection({ provider, baseUrl, model, timeoutSeconds });
+    const reasoningEffort =
+      (form.getFieldValue('reasoningEffort') as 'none' | 'low' | 'medium' | 'high' | undefined) ??
+      ai.reasoningEffort ??
+      'none';
+    const r = await window.desktopAPI.aiTestConnection({
+      provider,
+      baseUrl,
+      model,
+      timeoutSeconds,
+      reasoningEffort,
+    });
     if (r.ok) {
       setTest({ kind: 'ok', latencyMs: r.data.latencyMs });
     } else {
@@ -310,6 +324,7 @@ export default function SettingsPage() {
             baseUrl: ai.baseUrl,
             model: ai.model,
             timeoutSeconds: ai.timeoutSeconds,
+            reasoningEffort: ai.reasoningEffort ?? 'none',
             saveOriginal: ai.saveOriginal,
             redactEnabled: ai.redactEnabled,
           }}
@@ -393,6 +408,21 @@ export default function SettingsPage() {
               style={{ marginBottom: 16 }}
             />
           ) : null}
+          <Form.Item
+            name="reasoningEffort"
+            label="思考强度"
+            tooltip="API Key 和 GitHub Copilot 共用此设置"
+            extra="none 最快；强度越高通常越慢、消耗越多，且需要模型支持。"
+          >
+            <Select
+              options={[
+                { value: 'none', label: '关闭思考（none）' },
+                { value: 'low', label: '低（low）' },
+                { value: 'medium', label: '中（medium）' },
+                { value: 'high', label: '高（high）' },
+              ]}
+            />
+          </Form.Item>
           <Form.Item
             name="timeoutSeconds"
             label="请求超时时间（秒）"

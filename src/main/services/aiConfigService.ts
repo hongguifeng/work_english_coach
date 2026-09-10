@@ -35,6 +35,7 @@ export interface AiRequestConfig {
   baseUrl: string;
   model: string;
   timeoutMs: number;
+  reasoningEffort?: 'none' | 'low' | 'medium' | 'high';
   apiKey: string;
 }
 
@@ -95,6 +96,7 @@ export async function buildAiRequestConfig(
       baseUrl: COPILOT_BASE_URL,
       model: settings.model,
       timeoutMs: settings.timeoutSeconds * 1000,
+      reasoningEffort: settings.reasoningEffort ?? 'none',
       apiKey: auth.data.copilotToken,
     });
   }
@@ -117,6 +119,7 @@ export async function buildAiRequestConfig(
     baseUrl: settings.baseUrl,
     model: settings.model,
     timeoutMs: settings.timeoutSeconds * 1000,
+    reasoningEffort: settings.reasoningEffort ?? 'none',
     apiKey: key,
   });
 }

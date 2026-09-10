@@ -104,8 +104,12 @@ describe('OpenAICompatibleClient', () => {
     expect(res.ok).toBe(true);
     if (res.ok) expect(res.data).toBe('pong');
     expect(lastUrl).toBe('https://api.githubcopilot.com/responses');
-    const body = JSON.parse(String(lastInit?.body)) as { input: ChatMessage[] };
+    const body = JSON.parse(String(lastInit?.body)) as {
+      input: ChatMessage[];
+      reasoning: { effort: string };
+    };
     expect(body.input).toEqual(MESSAGES);
+    expect(body.reasoning).toEqual({ effort: 'none' });
   });
 
   it('routes non-Claude Copilot models to Responses API like the reference client', async () => {
@@ -136,6 +140,8 @@ describe('OpenAICompatibleClient', () => {
     }, MESSAGES);
     expect(res.ok).toBe(true);
     expect(lastUrl).toBe('https://api.githubcopilot.com/chat/completions');
+    const body = JSON.parse(String(lastInit?.body)) as { reasoning_effort: string };
+    expect(body.reasoning_effort).toBe('none');
   });
 
   it('omits Authorization header when apiKey is empty', async () => {

@@ -170,6 +170,7 @@ describe('buildAiRequestConfig', () => {
       baseUrl: 'https://api.example.com/v1',
       model: 'gpt-4o-mini',
       timeoutMs: 30 * 1000,
+      reasoningEffort: 'none',
       apiKey: 'sk-test-123',
     });
   });

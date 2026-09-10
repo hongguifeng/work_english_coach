@@ -81,6 +81,7 @@ export async function testAiConnection(
       baseUrl,
       model: validated.data.model,
       timeoutMs: validated.data.timeoutSeconds * 1000,
+      reasoningEffort: validated.data.reasoningEffort ?? 'none',
       apiKey: key,
     },
     [
