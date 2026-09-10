@@ -12,7 +12,9 @@ import {
 } from 'antd';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
+import { BoldText } from '../components/BoldText';
 import { CATEGORY_LABELS, SEVERITY_LABELS, SEVERITY_TAG_COLORS } from '../../../shared/constants/issues';
+import { stripBoldMarks } from '../../../shared/utils/bold';
 import type { HistoryRecord, HistoryRecordSummary } from '../../../shared/types/history';
 import type { Audience, SourceType, Tone } from '../../../shared/types/ai';
 
@@ -71,8 +73,8 @@ function HistoryDetail({ record }: { record: HistoryRecord }): JSX.Element {
       <Card title="AI 修改结果">
         <Descriptions column={1} size="small">
           <Descriptions.Item label="最小修改版">
-            <Typography.Paragraph copyable={{ text: record.minimalRevision }} style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
-              {record.minimalRevision}
+            <Typography.Paragraph copyable={{ text: stripBoldMarks(record.minimalRevision) }} style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
+              <BoldText text={record.minimalRevision} />
             </Typography.Paragraph>
           </Descriptions.Item>
           <Descriptions.Item label="自然表达版">

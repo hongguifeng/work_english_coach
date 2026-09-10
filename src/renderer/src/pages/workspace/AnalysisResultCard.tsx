@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Card, Checkbox, Descriptions, Empty, Space, Tag, Button, Typography } from 'antd';
 import type { AnalyzeDraftResult } from '../../../../shared/types/ai';
 import { CATEGORY_LABELS } from '../../../../shared/constants/issues';
+import { stripBoldMarks } from '../../../../shared/utils/bold';
+import { BoldText } from '../../components/BoldText';
 
 type SeverityColor = 'red' | 'orange' | 'purple' | 'blue';
 
@@ -115,8 +117,10 @@ export function AnalysisResultCard({
         <Descriptions column={1} size="small">
           <Descriptions.Item label="最小修改版">
             <Space direction="vertical" style={{ width: '100%' }}>
-              <div className="wec-version-min">{result.minimalRevision}</div>
-              <CopyButton text={result.minimalRevision} />
+              <div className="wec-version-min">
+                <BoldText text={result.minimalRevision} />
+              </div>
+              <CopyButton text={stripBoldMarks(result.minimalRevision)} />
             </Space>
           </Descriptions.Item>
           <Descriptions.Item label="自然表达版">
