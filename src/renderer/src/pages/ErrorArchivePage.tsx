@@ -145,7 +145,6 @@ export default function ErrorArchivePage() {
   return (
     <div>
       <PageHeader
-        title="错误档案"
         description="按知识点聚合的历史错误；掌握状态只由你的独立练习结果决定"
       />
       <Space style={{ marginBottom: 16 }} wrap>

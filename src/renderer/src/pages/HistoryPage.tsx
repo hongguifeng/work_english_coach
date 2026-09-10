@@ -185,7 +185,7 @@ export default function HistoryPage(): JSX.Element {
 
   return (
     <div>
-      <PageHeader title="历史记录" description="查看之前每次工作英语检查的 AI 分析结果" />
+      <PageHeader description="查看之前每次工作英语检查的 AI 分析结果" />
       {error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} /> : null}
       {loading ? <Card><Spin /></Card> : records.length === 0 ? (
         <Card><Empty description={<span>还没有检查记录，先去<Link to="/">工作区</Link>检查一段英文。</span>} /></Card>
