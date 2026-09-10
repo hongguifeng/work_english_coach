@@ -122,6 +122,23 @@ body {
   }
 }
 
+/* AI 结果卡片：压缩标题栏高度（antd 默认 min-height 48px + 标题上下 12px 内边距，空白偏多） */
+.wec-result-card > .ant-card-head {
+  min-height: auto;
+  padding: 0 16px;
+}
+
+.wec-result-card > .ant-card-head > .ant-card-head-title {
+  padding: 6px 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* 标题栏收紧后，内容区上边距相应减小 */
+.wec-result-card > .ant-card-body {
+  padding-top: 10px;
+}
+
 .wec-version-block {
   margin-bottom: 12px;
   padding: 10px 12px;

@@ -113,7 +113,7 @@ export function AnalysisResultCard({
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card title="版本对比">
+      <Card className="wec-result-card" title="版本对比">
         <Descriptions column={1} size="small">
           <Descriptions.Item label="最小修改版">
             <Space direction="vertical" style={{ width: '100%' }}>
@@ -141,7 +141,7 @@ export function AnalysisResultCard({
         </Descriptions>
       </Card>
 
-      <Card title={`问题与解释（${result.issues.length}）`}>
+      <Card className="wec-result-card" title={`问题与解释（${result.issues.length}）`}>
         {result.issues.length === 0 ? (
           <Empty description="没有检出明显问题" />
         ) : (
@@ -169,14 +169,14 @@ export function AnalysisResultCard({
         )}
       </Card>
 
-      <Card title="今日重点">
+      <Card className="wec-result-card" title="今日重点">
         <Space direction="vertical" style={{ width: '100%' }}>
           <Typography.Text strong>{result.keyLearningPoint.title}</Typography.Text>
           <Typography.Text>{result.keyLearningPoint.explanationZh}</Typography.Text>
         </Space>
       </Card>
 
-      <Card title="训练提示">
+      <Card className="wec-result-card" title="训练提示">
         <Space direction="vertical" style={{ width: '100%' }}>
           <Typography.Text>{result.practice.instructionZh}</Typography.Text>
           <Typography.Text type="secondary">
