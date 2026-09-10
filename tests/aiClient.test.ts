@@ -126,6 +126,40 @@ describe('OpenAICompatibleClient', () => {
     expect(lastUrl).toBe('https://api.githubcopilot.com/responses');
   });
 
+  it('routes API Key provider to /responses (non-stream) when apiEndpoint is set', async () => {
+    const client = new OpenAICompatibleClient({
+      fetchImpl: mockFetchOnce(() => Promise.resolve(jsonResponse({ output_text: 'pong' }))),
+    });
+    const res = await client.chat({ ...CONFIG, apiEndpoint: 'responses' }, MESSAGES);
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.data).toBe('pong');
+    expect(lastUrl).toBe('http://127.0.0.1:12346/v1/responses');
+    const body = JSON.parse(String(lastInit?.body)) as { model: string; input: unknown[]; stream?: boolean; reasoning?: unknown };
+    expect(body.model).toBe('qwen3.8-27b');
+    expect(body.input).toEqual(MESSAGES);
+    // 非 Copilot 的 responses 请求不走 SSE，不带 stream / reasoning
+    expect(body.stream).toBeUndefined();
+    expect(body.reasoning).toBeUndefined();
+  });
+
+  it('keeps API Key provider on /chat/completions when apiEndpoint is chatCompletions', async () => {
+    const client = new OpenAICompatibleClient({
+      fetchImpl: mockFetchOnce(() => Promise.resolve(jsonResponse({ choices: [{ message: { content: 'pong' } }] }))),
+    });
+    const res = await client.chat({ ...CONFIG, apiEndpoint: 'chatCompletions' }, MESSAGES);
+    expect(res.ok).toBe(true);
+    expect(lastUrl).toBe('http://127.0.0.1:12346/v1/chat/completions');
+  });
+
+  it('maps 200 responses missing output text to code=parse', async () => {
+    const client = new OpenAICompatibleClient({
+      fetchImpl: mockFetchOnce(() => Promise.resolve(jsonResponse({ output: [] }))),
+    });
+    const res = await client.chat({ ...CONFIG, apiEndpoint: 'responses' }, MESSAGES);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error.code).toBe('parse');
+  });
+
   it('routes Copilot Claude models to Chat Completions API', async () => {
     const client = new OpenAICompatibleClient({
       fetchImpl: mockFetchOnce(() => Promise.resolve(jsonResponse({

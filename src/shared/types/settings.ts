@@ -23,6 +23,9 @@ export const aiTimeoutSecondsSchema = z
   .min(5, '最小 5 秒')
   .max(300, '最大 300 秒');
 export const aiReasoningEffortSchema = z.enum(['none', 'low', 'medium', 'high']);
+/** AI 接口类型：OpenAI Chat Completions（/chat/completions）或 Responses（/responses）。 */
+export const aiApiEndpointSchema = z.enum(['chatCompletions', 'responses']);
+export type AiApiEndpoint = z.infer<typeof aiApiEndpointSchema>;
 
 export const aiSettingsSchema = z.object({
   /** AI 凭据来源；缺失时兼容旧配置，按 API Key 处理。 */
@@ -35,6 +38,8 @@ export const aiSettingsSchema = z.object({
   timeoutSeconds: aiTimeoutSecondsSchema,
   /** 推理强度；旧配置缺失时按 none 处理。 */
   reasoningEffort: aiReasoningEffortSchema.optional(),
+  /** API 接口类型；旧配置缺失时按 chatCompletions 处理（GitHub Copilot 模式下忽略，由系统自动选择）。 */
+  apiEndpoint: aiApiEndpointSchema.optional(),
   /** 是否保存原始工作文本（用户数据可选择不保存） */
   saveOriginal: z.boolean(),
   /** 是否启用脱敏（发送前对人名、邮箱等做掩码） */
@@ -50,6 +55,7 @@ export interface AiConnectionTestInput {
   model: string;
   timeoutSeconds: number;
   reasoningEffort?: z.infer<typeof aiReasoningEffortSchema>;
+  apiEndpoint?: AiApiEndpoint;
 }
 
 /** T042 测试连接成功结果：仅返回耗时（响应内容丢弃，不展示、不存储）。 */
@@ -73,6 +79,7 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   model: 'qwen3.8-27b',
   timeoutSeconds: 60,
   reasoningEffort: 'none',
+  apiEndpoint: 'chatCompletions',
   saveOriginal: true,
   redactEnabled: true,
 };

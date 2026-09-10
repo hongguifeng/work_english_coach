@@ -146,6 +146,13 @@ describe('saveAiConfig', () => {
     expect(r.error.code).toBe('validation');
   });
 
+  it('rejects an invalid apiEndpoint with a validation error and does not write', () => {
+    const r = saveAiConfig(repo, { ...DEFAULT_AI_SETTINGS, apiEndpoint: 'other' as never });
+    expect(isOk(r)).toBe(false);
+    if (isOk(r)) return;
+    expect(r.error.code).toBe('validation');
+  });
+
   it('rejects non-object input', () => {
     const r = saveAiConfig(repo, 'a plain string');
     expect(isOk(r)).toBe(false);
@@ -171,8 +178,25 @@ describe('buildAiRequestConfig', () => {
       model: 'gpt-4o-mini',
       timeoutMs: 30 * 1000,
       reasoningEffort: 'none',
+      // 未保存 apiEndpoint 时默认 chatCompletions
+      apiEndpoint: 'chatCompletions',
       apiKey: 'sk-test-123',
     });
+  });
+
+  it('returns the user-selected apiEndpoint (responses) when saved', async () => {
+    saveAiConfig(repo, {
+      ...DEFAULT_AI_SETTINGS,
+      baseUrl: 'http://127.0.0.1:12346/v1',
+      model: 'qwen3.8-27b',
+      apiEndpoint: 'responses',
+    });
+    await backend.set('aiApiKey', 'sk-test-123');
+
+    const r = await buildAiRequestConfig(repo, backend);
+    expect(isOk(r)).toBe(true);
+    if (!isOk(r)) return;
+    expect(r.data.apiEndpoint).toBe('responses');
   });
 
   it('returns a config error when no key is configured', async () => {

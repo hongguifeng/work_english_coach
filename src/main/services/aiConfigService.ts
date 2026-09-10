@@ -16,6 +16,7 @@ import {
   aiSettingsSchema,
   DEFAULT_AI_SETTINGS,
   type AiSettings,
+  type AiApiEndpoint,
 } from '../../shared/types/settings';
 import { classifyError } from '../db/errors';
 import type { SettingsRepository } from '../db/repositories/settings';
@@ -36,6 +37,8 @@ export interface AiRequestConfig {
   model: string;
   timeoutMs: number;
   reasoningEffort?: 'none' | 'low' | 'medium' | 'high';
+  /** 用户在设置页选择的 AI 接口；未设置时由客户端按 provider/模型自动选择。 */
+  apiEndpoint?: AiApiEndpoint;
   apiKey: string;
 }
 
@@ -97,6 +100,8 @@ export async function buildAiRequestConfig(
       model: settings.model,
       timeoutMs: settings.timeoutSeconds * 1000,
       reasoningEffort: settings.reasoningEffort ?? 'none',
+      // Copilot 模式由客户端按模型自动选择接口，用户设置不生效
+      apiEndpoint: undefined,
       apiKey: auth.data.copilotToken,
     });
   }
@@ -120,6 +125,7 @@ export async function buildAiRequestConfig(
     model: settings.model,
     timeoutMs: settings.timeoutSeconds * 1000,
     reasoningEffort: settings.reasoningEffort ?? 'none',
+    apiEndpoint: settings.apiEndpoint ?? 'chatCompletions',
     apiKey: key,
   });
 }

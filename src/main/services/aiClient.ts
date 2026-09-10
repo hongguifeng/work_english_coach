@@ -52,7 +52,11 @@ interface OpenAICompatibleClientOptions {
 }
 
 function modelEndpoint(config: AiRequestConfig): 'chat/completions' | 'responses' {
-  if (config.provider !== 'githubCopilot') return 'chat/completions';
+  // API Key 模式：尊重用户在设置页选择的接口（缺省 chatCompletions）
+  if (config.provider !== 'githubCopilot') {
+    return config.apiEndpoint === 'responses' ? 'responses' : 'chat/completions';
+  }
+  // GitHub Copilot 模式：按模型自动选择（与参考客户端一致，用户设置不生效）
   return config.model.toLowerCase().startsWith('claude')
     ? 'chat/completions'
     : 'responses';
@@ -68,14 +72,19 @@ function buildRequestBody(
   endpoint: 'chat/completions' | 'responses',
 ): string {
   if (endpoint === 'responses') {
+    // Copilot 参考客户端要求 SSE 流式；其它 OpenAI 兼容服务走非流式 JSON
     return JSON.stringify({
       model: config.model,
       input: messages.map((message) => ({
         role: message.role,
         content: message.content,
       })),
-      reasoning: { effort: config.reasoningEffort ?? 'none' },
-      stream: true,
+      ...(config.provider === 'githubCopilot'
+        ? {
+            reasoning: { effort: config.reasoningEffort ?? 'none' },
+            stream: true,
+          }
+        : {}),
     });
   }
   return JSON.stringify({

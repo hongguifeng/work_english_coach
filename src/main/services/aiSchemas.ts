@@ -246,6 +246,7 @@ export const aiConnectionTestInputSchema = z.object({
   model: aiModelSchema,
   timeoutSeconds: aiTimeoutSecondsSchema,
   reasoningEffort: z.enum(['none', 'low', 'medium', 'high']).optional(),
+  apiEndpoint: z.enum(['chatCompletions', 'responses']).optional(),
 });
 
 /** 校验测试连接输入；非法时返回 validation 错误（不会发送 AI）。 */

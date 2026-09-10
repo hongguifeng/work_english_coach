@@ -69,6 +69,7 @@ export default function SettingsPage() {
     baseUrl: string;
     model: string;
     provider: 'apiKey' | 'githubCopilot';
+    apiEndpoint: 'chatCompletions' | 'responses';
     timeoutSeconds: number;
     reasoningEffort: 'none' | 'low' | 'medium' | 'high';
     saveOriginal: boolean;
@@ -156,6 +157,7 @@ export default function SettingsPage() {
           model: r.data.model,
           timeoutSeconds: r.data.timeoutSeconds,
           reasoningEffort: r.data.reasoningEffort ?? 'none',
+          apiEndpoint: r.data.apiEndpoint ?? 'chatCompletions',
           saveOriginal: r.data.saveOriginal,
           redactEnabled: r.data.redactEnabled,
         });
@@ -207,6 +209,7 @@ export default function SettingsPage() {
     model?: string;
     timeoutSeconds: number;
     reasoningEffort?: 'none' | 'low' | 'medium' | 'high';
+    apiEndpoint?: 'chatCompletions' | 'responses';
     saveOriginal: boolean;
     redactEnabled: boolean;
   }) => {
@@ -217,6 +220,7 @@ export default function SettingsPage() {
       model: values.model?.trim() || ai.model,
       timeoutSeconds: values.timeoutSeconds,
       reasoningEffort: values.reasoningEffort ?? 'none',
+      apiEndpoint: values.apiEndpoint ?? 'chatCompletions',
       saveOriginal: values.saveOriginal,
       redactEnabled: values.redactEnabled,
     });
@@ -254,12 +258,17 @@ export default function SettingsPage() {
       (form.getFieldValue('reasoningEffort') as 'none' | 'low' | 'medium' | 'high' | undefined) ??
       ai.reasoningEffort ??
       'none';
+    const apiEndpoint =
+      (form.getFieldValue('apiEndpoint') as 'chatCompletions' | 'responses' | undefined) ??
+      ai.apiEndpoint ??
+      'chatCompletions';
     const r = await window.desktopAPI.aiTestConnection({
       provider,
       baseUrl,
       model,
       timeoutSeconds,
       reasoningEffort,
+      apiEndpoint: provider === 'githubCopilot' ? undefined : apiEndpoint,
     });
     if (r.ok) {
       setTest({ kind: 'ok', latencyMs: r.data.latencyMs });
@@ -325,6 +334,7 @@ export default function SettingsPage() {
             model: ai.model,
             timeoutSeconds: ai.timeoutSeconds,
             reasoningEffort: ai.reasoningEffort ?? 'none',
+            apiEndpoint: ai.apiEndpoint ?? 'chatCompletions',
             saveOriginal: ai.saveOriginal,
             redactEnabled: ai.redactEnabled,
           }}
@@ -352,7 +362,7 @@ export default function SettingsPage() {
               <Form.Item
                 name="baseUrl"
                 label="Base URL"
-                tooltip="OpenAI 兼容接口地址，以 /v1 结尾"
+                tooltip="OpenAI 兼容服务地址，请求会发送到 {baseUrl} 下的所选接口"
                 extra={
                   <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                     例如 https://api.openai.com/v1 或本地 http://127.0.0.1:12346/v1
@@ -361,13 +371,26 @@ export default function SettingsPage() {
               >
                 <Input placeholder="https://api.openai.com/v1" />
               </Form.Item>
+              <Form.Item
+                name="apiEndpoint"
+                label="API 接口"
+                tooltip="Chat Completions 是 OpenAI 标准的 /chat/completions；Responses 是 OpenAI /responses 接口（部分兼容服务也提供）"
+              >
+                <Select
+                  style={{ width: 260 }}
+                  options={[
+                    { value: 'chatCompletions', label: 'Chat Completions（/chat/completions）' },
+                    { value: 'responses', label: 'Responses（/responses）' },
+                  ]}
+                />
+              </Form.Item>
             </>
           ) : (
             <Alert
               type="info"
               showIcon
               message="当前请求使用 GitHub Copilot 订阅"
-              description="Base URL 由系统固定为 https://api.githubcopilot.com，不使用 API Key 卡片中的密钥。"
+              description="Base URL 由系统固定为 https://api.githubcopilot.com，不使用 API Key 卡片中的密钥；API 接口由系统按所选模型自动选择（Claude 模型走 Chat Completions，其它走 Responses）。"
               style={{ marginBottom: 16 }}
             />
           )}
@@ -377,7 +400,7 @@ export default function SettingsPage() {
             tooltip={
               selectedProvider === 'githubCopilot'
                 ? '传给 GitHub Copilot 的模型名称'
-                : '传给 chat/completions 的 model 字段'
+                : '传给 AI 请求的 model 字段'
             }
             extra={
               selectedProvider === 'githubCopilot' ? (

@@ -82,6 +82,8 @@ export async function testAiConnection(
       model: validated.data.model,
       timeoutMs: validated.data.timeoutSeconds * 1000,
       reasoningEffort: validated.data.reasoningEffort ?? 'none',
+      // Copilot 模式由客户端自动选择接口，测试时不传（与 buildAiRequestConfig 一致）
+      apiEndpoint: provider === 'githubCopilot' ? undefined : validated.data.apiEndpoint,
       apiKey: key,
     },
     [
