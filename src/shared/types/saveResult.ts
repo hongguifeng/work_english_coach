@@ -7,6 +7,8 @@ import type { AnalyzeDraftInput, AnalyzeDraftResult } from './ai';
  * 主进程在 IPC 边界用 AI 契约 Zod Schema 重新校验后才写库（纵深防御）。
  */
 export interface SaveCorrectionPayload {
+  /** 已自动保存的历史记录 ID；确认保存时复用该记录，避免重复插入。 */
+  sampleId?: string;
   /** 提交给 AI 的原始输入（T022） */
   input: AnalyzeDraftInput;
   /** Zod 校验通过的纠错结果（T021/T022） */

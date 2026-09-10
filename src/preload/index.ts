@@ -13,6 +13,7 @@ import type {
 } from '../shared/types/settings';
 import type { AnalyzeDraftInput, AnalyzeDraftResult } from '../shared/types/ai';
 import type { SaveCorrectionPayload, SaveCorrectionSummary } from '../shared/types/saveResult';
+import type { HistoryRecord, HistoryRecordSummary } from '../shared/types/history';
 import type {
   CreateExpressionInput,
   ExpressionRecord,
@@ -73,6 +74,8 @@ const desktopApi: DesktopApi = {
   // T025：保存纠错结果（主进程在 IPC 边界重新 Zod 校验后写库）。
   saveAnalysisResult: (payload: SaveCorrectionPayload) =>
     invoke<SaveCorrectionSummary>('result:save', payload),
+  historyList: () => invoke<HistoryRecordSummary[]>('history:list'),
+  historyGet: (id: string) => invoke<HistoryRecord | null>('history:get', id),
   // T026：表达库 CRUD（数据来自 SQLite；主进程在 IPC 边界重新 Zod 校验）。
   expressionList: () => invoke<ExpressionRecord[]>('expression:list'),
   expressionCreate: (input: CreateExpressionInput) =>

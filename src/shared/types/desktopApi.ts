@@ -9,6 +9,7 @@ import type {
 import type { DataChangedEvent, DeleteSummary, ExportResult } from './data';
 import type { AnalyzeDraftInput, AnalyzeDraftResult } from './ai';
 import type { SaveCorrectionPayload, SaveCorrectionSummary } from './saveResult';
+import type { HistoryRecord, HistoryRecordSummary } from './history';
 import type {
   CreateExpressionInput,
   ExpressionRecord,
@@ -94,6 +95,9 @@ export interface DesktopApi {
    * （知识点/表达仍可用于复习）。非法载荷 → validation（T025）。
    */
   saveAnalysisResult(payload: SaveCorrectionPayload): Promise<Result<SaveCorrectionSummary>>;
+  /** 查询历史纠错记录及单条记录详情。 */
+  historyList(): Promise<Result<HistoryRecordSummary[]>>;
+  historyGet(id: string): Promise<Result<HistoryRecord | null>>;
   /** 列出全部表达（含归档），按创建时间倒序；搜索/筛选在页面侧完成（T026）。 */
   expressionList(): Promise<Result<ExpressionRecord[]>>;
   /** 手动新增表达（非法载荷 → validation）（T026）。 */

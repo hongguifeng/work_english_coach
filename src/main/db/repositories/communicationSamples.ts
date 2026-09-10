@@ -1,6 +1,6 @@
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
-import type { Audience, IssueCategory, IssueSeverity, SourceType, Tone } from '../../../shared/types/ai';
+import type { Audience, AnalyzeDraftResult, IssueCategory, IssueSeverity, SourceType, Tone } from '../../../shared/types/ai';
 import type { Result } from '../../../shared/types/app';
 import type { SqlDb } from '../db';
 import { toResult } from '../errors';
@@ -20,6 +20,8 @@ export interface CreateSampleInput {
   shouldClarify: boolean;
   /** 需要澄清时的问题列表（可空数组 / null） */
   clarificationQuestions: readonly string[] | null;
+  keyLearningPoint?: AnalyzeDraftResult['keyLearningPoint'];
+  practice?: AnalyzeDraftResult['practice'];
 }
 
 export interface DetectedIssueInput {
@@ -50,6 +52,8 @@ export class CommunicationSampleRepository {
       naturalRevision: input.naturalRevision,
       shouldClarify: input.shouldClarify,
       clarificationQuestions: jsonEncode(input.clarificationQuestions),
+      keyLearningPoint: input.keyLearningPoint ? JSON.stringify(input.keyLearningPoint) : null,
+      practice: input.practice ? JSON.stringify(input.practice) : null,
       createdAt,
     };
   }
@@ -119,5 +123,19 @@ export class CommunicationSampleRepository {
     return toResult(
       () => this.db.select().from(communicationSamples).orderBy(desc(communicationSamples.createdAt)).all(),
     );
+  }
+
+  listWithIssueCounts(): Result<Array<CommunicationSampleRow & { issueCount: number }>> {
+    return toResult(() => {
+      const samples = this.db.select().from(communicationSamples).orderBy(desc(communicationSamples.createdAt)).all();
+      return samples.map((sample) => ({
+        ...sample,
+        issueCount: this.db
+          .select({ count: sql<number>`count(*)` })
+          .from(detectedIssues)
+          .where(eq(detectedIssues.sampleId, sample.id))
+          .get()?.count ?? 0,
+      }));
+    });
   }
 }

@@ -32,6 +32,7 @@ import { saveCorrectionResult } from '../services/saveResultService';
 
 /** 保存载荷在 IPC 边界重新校验（复用 T021/T022 的 AI 契约 Schema）。 */
 const savePayloadSchema = z.object({
+  sampleId: z.string().min(1).optional(),
   input: analyzeDraftInputSchema,
   result: draftAnalysisSchema,
   saveOriginal: z.boolean(),

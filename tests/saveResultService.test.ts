@@ -188,6 +188,37 @@ describe('saveCorrectionResult (T025)', () => {
     }
   });
 
+  it('复用 sampleId：确认保存不重复创建历史记录，并保留重点与训练提示', () => {
+    const { db, client, close } = createTestDb();
+    try {
+      const repos = createRepositories(db);
+      const first = saveCorrectionResult(repos, {
+        input: INPUT,
+        result: makeResult(),
+        saveOriginal: true,
+        saveExpression: false,
+      });
+      expect(first.ok).toBe(true);
+      if (!first.ok) return;
+
+      const confirmed = saveCorrectionResult(repos, {
+        sampleId: first.data.sampleId,
+        input: INPUT,
+        result: makeResult(),
+        saveOriginal: true,
+        saveExpression: true,
+      });
+      expect(confirmed.ok).toBe(true);
+      expect(confirmed.ok && confirmed.data.sampleId).toBe(first.data.sampleId);
+      expect(client.prepare('SELECT COUNT(*) AS n FROM communication_samples').get()).toMatchObject({ n: 1 });
+      const sample = client.prepare('SELECT keyLearningPoint, practice FROM communication_samples').get() as Record<string, string>;
+      expect(JSON.parse(sample.keyLearningPoint).title).toBe('will vs going to');
+      expect(JSON.parse(sample.practice).keywords).toEqual(['will', 'delivered', 'tomorrow afternoon']);
+    } finally {
+      close();
+    }
+  });
+
   it('skill 去重复用：同 skillKey 二次保存 → KLP 单行且标题更新；②-b 已有行不重建', () => {
     const { db, client, close } = createTestDb();
     try {

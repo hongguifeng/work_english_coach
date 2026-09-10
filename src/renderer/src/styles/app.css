@@ -74,6 +74,54 @@ body {
   padding: 48px 0;
 }
 
+.wec-history-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.wec-history-list {
+  position: sticky;
+  top: 0;
+  max-height: calc(100vh - 150px);
+  overflow-y: auto;
+}
+
+.wec-history-list-item,
+.wec-history-list-item-selected {
+  display: block !important;
+  padding: 14px 16px !important;
+  cursor: pointer;
+}
+
+.wec-history-list-item-selected {
+  background: #e6f4ff;
+  border-inline-start: 3px solid #1677ff;
+}
+
+.wec-history-list-item .ant-list-item-meta-title,
+.wec-history-list-item-selected .ant-list-item-meta-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wec-history-detail {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .wec-history-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .wec-history-list {
+    position: static;
+    max-height: 280px;
+  }
+}
+
 .wec-version-block {
   margin-bottom: 12px;
   padding: 10px 12px;

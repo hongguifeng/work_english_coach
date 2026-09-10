@@ -7,6 +7,7 @@ import {
   BarChartOutlined,
   BookOutlined,
   CompassOutlined,
+  HistoryOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
 import { Layout, Menu, Typography } from 'antd';
@@ -17,6 +18,7 @@ import ErrorArchivePage from './pages/ErrorArchivePage';
 import StatisticsPage from './pages/StatisticsPage';
 import RecordingPage from './pages/RecordingPage';
 import SettingsPage from './pages/SettingsPage';
+import HistoryPage from './pages/HistoryPage';
 
 const { Sider, Header, Content } = Layout;
 
@@ -26,6 +28,7 @@ const NAV_ITEMS = [
   { key: '/today', icon: <AppstoreOutlined />, title: '今日训练' },
   { key: '/expressions', icon: <BookOutlined />, title: '表达库' },
   { key: '/errors', icon: <AlertOutlined />, title: '错误档案' },
+  { key: '/history', icon: <HistoryOutlined />, title: '历史记录' },
   { key: '/stats', icon: <BarChartOutlined />, title: '学习统计' },
   { key: '/record', icon: <AudioOutlined />, title: '录音' },
   { key: '/settings', icon: <SettingOutlined />, title: '设置' },
@@ -101,6 +104,7 @@ export default function App() {
               <Route path="/today" element={<TrainingPage />} />
               <Route path="/expressions" element={<LibraryPage />} />
               <Route path="/errors" element={<ErrorArchivePage />} />
+              <Route path="/history" element={<HistoryPage />} />
               <Route path="/stats" element={<StatisticsPage />} />
               <Route path="/record" element={<RecordingPage />} />
               <Route path="/settings" element={<SettingsPage />} />

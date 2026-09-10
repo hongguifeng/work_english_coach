@@ -1,9 +1,9 @@
 import { message } from 'antd';
 import { useCallback, useRef, useState } from 'react';
-import type { AnalyzeDraftResult } from '../../../shared/types/ai';
 import { PageHeader } from '../components/PageHeader';
 import { AnalysisResultCard } from './workspace/AnalysisResultCard';
 import { DraftForm, type DraftFormSubmit } from './workspace/DraftForm';
+import { useWorkspaceStore } from '../lib/workspaceStore';
 
 /**
  * 将 main 返回的 code 映射为中文提示；message 为空时给兜底文案（T022）。
@@ -32,23 +32,28 @@ function humanMessage(code: string, message: string | null): string {
 /**
  * 工作区（T008 / T022 / T025）：左侧表单 + 右侧结果区。
  * 提交走 IPC `ai:analyze-draft`（主进程调 AI + Zod 校验）；支持取消与重试。
- * T025：「确认并保存」调 `result:save`，把样本+错误+知识点（+可选表达）写入 SQLite。
+ * AI 分析成功后自动写入历史；「确认并保存」只负责补充学习数据和可选表达。
  */
 export default function WorkspacePage() {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<AnalyzeDraftResult | null>(null);
+  const result = useWorkspaceStore((state) => state.result);
+  const setResult = useWorkspaceStore((state) => state.setResult);
+  const lastSubmit = useWorkspaceStore((state) => state.lastSubmit);
+  const setLastSubmit = useWorkspaceStore((state) => state.setLastSubmit);
+  const draftValues = useWorkspaceStore((state) => state.draftValues);
+  const setDraftValues = useWorkspaceStore((state) => state.setDraftValues);
   const [error, setError] = useState<string | null>(null);
   // T025：保存相关 UI 状态
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveExpression, setSaveExpression] = useState(true);
+  const [historySampleId, setHistorySampleId] = useState<string | null>(null);
 
   // 仅用于取消/重试的内部状态；用 ref 避免额外 re-render。
-  const lastSubmitRef = useRef<DraftFormSubmit | null>(null);
   const requestIdRef = useRef<string>('');
 
   const handleSubmit = useCallback(async (submit: DraftFormSubmit) => {
-    lastSubmitRef.current = submit;
+    setLastSubmit(submit);
     const rid =
       typeof crypto !== 'undefined' && 'randomUUID' in crypto
         ? crypto.randomUUID()
@@ -60,29 +65,39 @@ export default function WorkspacePage() {
     setSaved(false);
     setSaving(false);
     setSaveExpression(true);
+    setHistorySampleId(null);
     const r = await window.desktopAPI.aiAnalyzeDraft(submit.input, rid);
     if (r.ok) {
       setResult(r.data);
+      const history = await window.desktopAPI.saveAnalysisResult({
+        input: submit.input,
+        result: r.data,
+        saveOriginal: submit.saveOriginal,
+        saveExpression: false,
+      });
+      if (history.ok) setHistorySampleId(history.data.sampleId);
+      else message.warning(`历史记录保存失败：${humanMessage(history.error.code, history.error.message)}`);
     } else {
       setError(humanMessage(r.error.code, r.error.message));
     }
     setLoading(false);
-  }, []);
+  }, [setLastSubmit, setResult]);
 
   const handleCancel = useCallback(() => {
     void window.desktopAPI.aiAnalyzeDraftCancel(requestIdRef.current);
   }, []);
 
   const handleRetry = useCallback(() => {
-    const s = lastSubmitRef.current;
+    const s = lastSubmit;
     if (s) void handleSubmit(s);
-  }, [handleSubmit]);
+  }, [handleSubmit, lastSubmit]);
 
   const handleConfirm = useCallback(async () => {
-    const submit = lastSubmitRef.current;
+    const submit = lastSubmit;
     if (!submit || result === null || saved || saving) return;
     setSaving(true);
     const r = await window.desktopAPI.saveAnalysisResult({
+      sampleId: historySampleId ?? undefined,
       input: submit.input,
       result,
       saveOriginal: submit.saveOriginal,
@@ -97,7 +112,7 @@ export default function WorkspacePage() {
     } else {
       message.error(humanMessage(r.error.code, r.error.message));
     }
-  }, [result, saved, saving, saveExpression]);
+  }, [result, saved, saving, saveExpression, historySampleId, lastSubmit]);
 
   return (
     <div>
@@ -108,7 +123,12 @@ export default function WorkspacePage() {
       <div className="wec-workspace-columns">
         <div className="wec-form-col">
           <div className="wec-panel">
-            <DraftForm loading={loading} onSubmit={handleSubmit} />
+            <DraftForm
+              loading={loading}
+              initialValues={draftValues}
+              onValuesChange={setDraftValues}
+              onSubmit={handleSubmit}
+            />
           </div>
         </div>
         <div className="wec-result-col">

@@ -356,6 +356,28 @@ describe('CommunicationSampleRepository', () => {
 		expect(all.data.length).toBe(2);
 	});
 
+	it('listWithIssueCounts returns each sample with its issue count', () => {
+		const saved = repos.samples.saveWithIssues(baseSample, [
+			{
+				category: 'grammar',
+				skillKey: 'grammar-1',
+				originalText: 'is done',
+				correctedText: 'is complete',
+				explanationZh: '更正式的表达。',
+				severity: 'suggestion',
+			},
+		]);
+		expect(isOk(saved)).toBe(true);
+		if (!isOk(saved)) return;
+		repos.samples.create({ ...baseSample, originalEnglish: 'No issue draft' });
+
+		const listed = repos.samples.listWithIssueCounts();
+		expect(isOk(listed)).toBe(true);
+		if (!isOk(listed)) return;
+		expect(listed.data.find((sample) => sample.id === saved.data.id)?.issueCount).toBe(1);
+		expect(listed.data.find((sample) => sample.originalEnglish === 'No issue draft')?.issueCount).toBe(0);
+	});
+
 	it('get non-existent id returns null', () => {
 		const got = repos.samples.get('nonexistent-id');
 		expect(isOk(got)).toBe(true);

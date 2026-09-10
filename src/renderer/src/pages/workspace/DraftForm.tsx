@@ -32,9 +32,11 @@ export type DraftFormSubmit = {
 interface DraftFormProps {
   loading: boolean;
   onSubmit: (submit: DraftFormSubmit) => void;
+  initialValues?: DraftFormValues;
+  onValuesChange?: (changedValues: Partial<DraftFormValues>) => void;
 }
 
-const INITIAL_VALUES: DraftFormValues = {
+export const INITIAL_VALUES: DraftFormValues = {
   originalChinese: '',
   originalEnglish: '',
   sourceType: 'email',
@@ -46,7 +48,7 @@ const INITIAL_VALUES: DraftFormValues = {
 /**
  * 工作区表单：中文原意 + 英文草稿 + 场景/对象/语气（T008）
  */
-export function DraftForm({ loading, onSubmit }: DraftFormProps) {
+export function DraftForm({ loading, onSubmit, initialValues = INITIAL_VALUES, onValuesChange }: DraftFormProps) {
   const [form] = Form.useForm<DraftFormValues>();
 
   const handleFinish = (values: DraftFormValues) => {
@@ -75,7 +77,8 @@ export function DraftForm({ loading, onSubmit }: DraftFormProps) {
     <Form
       form={form}
       layout="vertical"
-      initialValues={INITIAL_VALUES}
+      initialValues={initialValues}
+      onValuesChange={(changedValues) => onValuesChange?.(changedValues)}
       onFinish={handleFinish}
       requiredMark={false}
     >

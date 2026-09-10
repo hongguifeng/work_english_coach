@@ -78,28 +78,39 @@ export function saveCorrectionResult(
     const { input, result, saveOriginal, saveExpression } = payload;
 
     // ① 样本 + 错误列表（saveWithIssues 内部事务，二者要么都写要么都不写）
-    const sampleResult = repos.samples.saveWithIssues(
-      {
-        sourceType: input.sourceType,
-        audience: input.audience,
-        tone: input.tone,
-        // 隐私：不保存原文 → 两个原文字段均为 NULL（知识点/表达不受影响）
-        originalChinese: saveOriginal ? (input.originalChinese ?? null) : null,
-        originalEnglish: saveOriginal ? input.originalEnglish : null,
-        minimalRevision: result.minimalRevision,
-        naturalRevision: result.naturalRevision,
-        shouldClarify: result.shouldClarify,
-        clarificationQuestions: result.shouldClarify ? result.clarificationQuestions : null,
-      },
-      result.issues.map((i) => ({
-        category: i.category,
-        skillKey: i.skillKey,
-        originalText: i.originalText,
-        correctedText: i.correctedText,
-        explanationZh: i.explanationZh,
-        severity: i.severity,
-      })),
-    );
+    const sampleResult = payload.sampleId
+      ? (() => {
+          const sample = repos.samples.get(payload.sampleId);
+          if (!sample.ok) return sample;
+          if (sample.data === null) return err('storage', '历史记录不存在');
+          const issues = repos.issues.getBySampleId(payload.sampleId);
+          if (!issues.ok) return issues;
+          return ok({ ...sample.data, issues: issues.data });
+        })()
+      : repos.samples.saveWithIssues(
+          {
+            sourceType: input.sourceType,
+            audience: input.audience,
+            tone: input.tone,
+            // 隐私：不保存原文 → 两个原文字段均为 NULL（知识点/表达不受影响）
+            originalChinese: saveOriginal ? (input.originalChinese ?? null) : null,
+            originalEnglish: saveOriginal ? input.originalEnglish : null,
+            minimalRevision: result.minimalRevision,
+            naturalRevision: result.naturalRevision,
+            shouldClarify: result.shouldClarify,
+            clarificationQuestions: result.shouldClarify ? result.clarificationQuestions : null,
+            keyLearningPoint: result.keyLearningPoint,
+            practice: result.practice,
+          },
+          result.issues.map((i) => ({
+            category: i.category,
+            skillKey: i.skillKey,
+            originalText: i.originalText,
+            correctedText: i.correctedText,
+            explanationZh: i.explanationZh,
+            severity: i.severity,
+          })),
+        );
     if (!sampleResult.ok) return { ok: false, error: sampleResult.error };
 
     // ② 重点知识点 → skills upsert（按 skillKey 去重复用）

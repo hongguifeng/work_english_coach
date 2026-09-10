@@ -52,6 +52,10 @@ export const communicationSamples = sqliteTable('communication_samples', {
   shouldClarify: integer('shouldClarify', { mode: 'boolean' }).notNull().default(false),
   /** JSON 数组字符串 */
   clarificationQuestions: text('clarificationQuestions'),
+  /** JSON 对象字符串：AI 返回的今日重点 */
+  keyLearningPoint: text('keyLearningPoint'),
+  /** JSON 对象字符串：AI 返回的训练提示 */
+  practice: text('practice'),
   createdAt: text('createdAt').notNull(),
 });
 
