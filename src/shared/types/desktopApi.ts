@@ -3,6 +3,8 @@ import type {
   AiConnectionTestInput,
   AiConnectionTestResult,
   AiSettings,
+  CopilotModel,
+  CopilotLoginInfo,
 } from './settings';
 import type { DataChangedEvent, DeleteSummary, ExportResult } from './data';
 import type { AnalyzeDraftInput, AnalyzeDraftResult } from './ai';
@@ -60,6 +62,16 @@ export interface DesktopApi {
   aiConfigGet(): Promise<Result<AiSettings>>;
   /** 校验并持久化 AI 非密钥配置（非法输入 → validation 错误；绝不含 API Key）（T019）。 */
   aiConfigSave(settings: AiSettings): Promise<Result<AiSettings>>;
+  /** GitHub Copilot OAuth Device Flow：开始登录并返回验证码信息。 */
+  copilotBeginLogin(): Promise<Result<CopilotLoginInfo>>;
+  /** 完成 GitHub Copilot OAuth Device Flow 并将 token 保存到系统凭据存储。 */
+  copilotCompleteLogin(): Promise<Result<void>>;
+  /** 清除 GitHub Copilot 登录凭据。 */
+  copilotLogout(): Promise<Result<void>>;
+  /** 查询是否存在 GitHub Copilot 登录凭据。 */
+  copilotIsConfigured(): Promise<Result<boolean>>;
+  /** 获取当前 Copilot 订阅实际可用的模型列表，不返回任何 token。 */
+  copilotListModels(): Promise<Result<CopilotModel[]>>;
   /**
    * 测试连接（T042）：用表单当前的 Base URL / 模型 / 超时发起一次真实最小 AI 调用
    * （Key 由主进程从凭据存储读取，不经过 IPC；响应内容丢弃，只返回耗时）。

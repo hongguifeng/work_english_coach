@@ -21,6 +21,7 @@ import { classifyError } from '../db/errors';
 import type { SettingsRepository } from '../db/repositories/settings';
 import { readApiKey } from './secretService';
 import type { SecretBackend } from './secretBackend';
+import { COPILOT_BASE_URL, ensureCopilotAuth } from './copilotAuthService';
 
 /** `settings` 表中存放 AI 非密钥配置的键。 */
 export const AI_CONFIG_KEY = 'aiSettings';
@@ -30,6 +31,7 @@ export const AI_CONFIG_KEY = 'aiSettings';
  * `timeoutMs` 由秒换算而来，便于直接传给 fetch/超时控制。
  */
 export interface AiRequestConfig {
+  provider?: 'apiKey' | 'githubCopilot';
   baseUrl: string;
   model: string;
   timeoutMs: number;
@@ -85,6 +87,18 @@ export async function buildAiRequestConfig(
   backend: SecretBackend,
 ): Promise<Result<AiRequestConfig>> {
   const settings = loadAiConfig(repo);
+  if (settings.provider === 'githubCopilot') {
+    const auth = await ensureCopilotAuth(backend);
+    if (!auth.ok) return auth;
+    return ok({
+      provider: 'githubCopilot',
+      baseUrl: COPILOT_BASE_URL,
+      model: settings.model,
+      timeoutMs: settings.timeoutSeconds * 1000,
+      apiKey: auth.data.copilotToken,
+    });
+  }
+
   let key: string | null = null;
   try {
     key = await readApiKey(backend);

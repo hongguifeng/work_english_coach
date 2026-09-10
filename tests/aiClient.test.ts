@@ -89,6 +89,55 @@ describe('OpenAICompatibleClient', () => {
     expect(body.messages).toEqual(MESSAGES);
   });
 
+  it('routes Copilot GPT models to Responses API and extracts output text', async () => {
+    const client = new OpenAICompatibleClient({
+      fetchImpl: mockFetchOnce(() => Promise.resolve(jsonResponse({
+        output: [{ content: [{ type: 'output_text', text: 'pong' }] }],
+      }))),
+    });
+    const res = await client.chat({
+      ...CONFIG,
+      provider: 'githubCopilot',
+      baseUrl: 'https://api.githubcopilot.com',
+      model: 'gpt-4o',
+    }, MESSAGES);
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.data).toBe('pong');
+    expect(lastUrl).toBe('https://api.githubcopilot.com/responses');
+    const body = JSON.parse(String(lastInit?.body)) as { input: ChatMessage[] };
+    expect(body.input).toEqual(MESSAGES);
+  });
+
+  it('routes non-Claude Copilot models to Responses API like the reference client', async () => {
+    const client = new OpenAICompatibleClient({
+      fetchImpl: mockFetchOnce(() => Promise.resolve(jsonResponse({ output_text: 'pong' }))),
+    });
+    const res = await client.chat({
+      ...CONFIG,
+      provider: 'githubCopilot',
+      baseUrl: 'https://api.githubcopilot.com',
+      model: 'o3-mini',
+    }, MESSAGES);
+    expect(res.ok).toBe(true);
+    expect(lastUrl).toBe('https://api.githubcopilot.com/responses');
+  });
+
+  it('routes Copilot Claude models to Chat Completions API', async () => {
+    const client = new OpenAICompatibleClient({
+      fetchImpl: mockFetchOnce(() => Promise.resolve(jsonResponse({
+        choices: [{ message: { content: 'pong' } }],
+      }))),
+    });
+    const res = await client.chat({
+      ...CONFIG,
+      provider: 'githubCopilot',
+      baseUrl: 'https://api.githubcopilot.com',
+      model: 'claude-haiku-4.5',
+    }, MESSAGES);
+    expect(res.ok).toBe(true);
+    expect(lastUrl).toBe('https://api.githubcopilot.com/chat/completions');
+  });
+
   it('omits Authorization header when apiKey is empty', async () => {
     const client = new OpenAICompatibleClient({
       fetchImpl: mockFetchOnce(() => Promise.resolve(jsonResponse({ choices: [{ message: { content: 'hi' } }] }))),

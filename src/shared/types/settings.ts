@@ -24,6 +24,8 @@ export const aiTimeoutSecondsSchema = z
   .max(300, '最大 300 秒');
 
 export const aiSettingsSchema = z.object({
+  /** AI 凭据来源；缺失时兼容旧配置，按 API Key 处理。 */
+  provider: z.enum(['apiKey', 'githubCopilot']).optional(),
   /** OpenAI 兼容服务地址，如 https://api.openai.com/v1 或 http://127.0.0.1:12346/v1 */
   baseUrl: aiBaseUrlSchema,
   /** 模型名称，如 gpt-4o-mini、qwen3.8-27b */
@@ -40,6 +42,7 @@ export type AiSettings = z.infer<typeof aiSettingsSchema>;
 
 /** T042 测试连接输入：设置页表单当前的三个 AI 字段（不含 Key、不含保存原文/脱敏开关）。 */
 export interface AiConnectionTestInput {
+  provider?: 'apiKey' | 'githubCopilot';
   baseUrl: string;
   model: string;
   timeoutSeconds: number;
@@ -50,7 +53,18 @@ export interface AiConnectionTestResult {
   latencyMs: number;
 }
 
+export interface CopilotLoginInfo {
+  userCode: string;
+  verificationUri: string;
+}
+
+export interface CopilotModel {
+  id: string;
+  name: string;
+}
+
 export const DEFAULT_AI_SETTINGS: AiSettings = {
+  provider: 'apiKey',
   baseUrl: 'http://127.0.0.1:12346/v1',
   model: 'qwen3.8-27b',
   timeoutSeconds: 60,

@@ -1,9 +1,7 @@
 // Rebuild native modules (better-sqlite3) against the installed Electron.
 //
-// Why not @electron/rebuild: better-sqlite3 v12/v13 binding.gyp gates the
-// compile target on prebuild presence, and @electron/rebuild 4.x does not
-// expose the force flag, so it silently produces no .node. Driving node-gyp
-// directly with the Electron headers (runtime/target/disturl) works reliably.
+// Prefer the package's official Electron prebuild. Fall back to node-gyp when
+// the installed version/ABI has no matching prebuild.
 //
 // Usage: npm run rebuild:electron
 // Prereq (first time on a machine): Electron headers are auto-downloaded by
@@ -18,8 +16,21 @@ const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const requireFromRoot = createRequire(resolve(projectRoot, 'package.json'));
 
 const electronVersion = requireFromRoot('electron/package.json').version;
-const gypBin = resolve(projectRoot, 'node_modules', 'node-gyp', 'bin', 'node-gyp.js');
+const gypBin = requireFromRoot.resolve('node-gyp/bin/node-gyp.js', {
+  paths: [resolve(projectRoot, 'node_modules', 'app-builder-lib')],
+});
 const moduleDir = resolve(projectRoot, 'node_modules', 'better-sqlite3');
+const prebuildBin = requireFromRoot.resolve('prebuild-install/bin.js');
+
+const prebuild = spawnSync(
+  process.execPath,
+  [prebuildBin, '--runtime', 'electron', '--target', electronVersion, '--arch', process.arch],
+  { cwd: moduleDir, stdio: 'inherit' },
+);
+if (prebuild.status === 0) {
+  console.log('[rebuild-native] installed official Electron prebuild');
+  process.exit(0);
+}
 
 const env = {
   ...process.env,

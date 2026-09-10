@@ -8,6 +8,8 @@ import type {
   AiConnectionTestInput,
   AiConnectionTestResult,
   AiSettings,
+  CopilotLoginInfo,
+  CopilotModel,
 } from '../shared/types/settings';
 import type { AnalyzeDraftInput, AnalyzeDraftResult } from '../shared/types/ai';
 import type { SaveCorrectionPayload, SaveCorrectionSummary } from '../shared/types/saveResult';
@@ -55,6 +57,11 @@ const desktopApi: DesktopApi = {
   // T019：AI 非密钥配置持久化到 SQLite settings 表（绝不含 API Key）。
   aiConfigGet: () => invoke<AiSettings>('aiConfig:get'),
   aiConfigSave: (settings: AiSettings) => invoke<AiSettings>('aiConfig:save', settings),
+  copilotBeginLogin: () => invoke<CopilotLoginInfo>('copilot:begin-login'),
+  copilotCompleteLogin: () => invoke<void>('copilot:complete-login'),
+  copilotLogout: () => invoke<void>('copilot:logout'),
+  copilotIsConfigured: () => invoke<boolean>('copilot:is-configured'),
+  copilotListModels: () => invoke<CopilotModel[]>('copilot:list-models'),
   // T042：测试连接（真实最小 AI 调用）；Key 只在主进程，响应内容丢弃只返回耗时。
   aiTestConnection: (input: AiConnectionTestInput) =>
     invoke<AiConnectionTestResult>('ai:test-connection', input),

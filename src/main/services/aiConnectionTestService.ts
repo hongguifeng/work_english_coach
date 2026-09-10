@@ -23,6 +23,7 @@ import { readApiKey } from './secretService';
 import type { SecretBackend } from './secretBackend';
 import { OpenAICompatibleClient, type AiClient } from './aiClient';
 import { parseAiConnectionTestInput } from './aiSchemas';
+import { COPILOT_BASE_URL, ensureCopilotAuth } from './copilotAuthService';
 
 /** 测试连接服务的依赖注入（便于单测替换凭据后端 / AI 客户端）。 */
 export interface AiConnectionTestDeps {
@@ -51,13 +52,24 @@ export async function testAiConnection(
 
   // ② 从系统凭据存储读取 API Key（绝不过 IPC；未配置 → config）
   let key: string | null = null;
+  const provider = validated.data.provider;
+  let baseUrl = validated.data.baseUrl;
   try {
-    key = await readApiKey(deps.getSecretBackend());
+    if (provider === 'githubCopilot') {
+      const auth = await ensureCopilotAuth(deps.getSecretBackend());
+      if (!auth.ok) return auth;
+      key = auth.data.copilotToken;
+      baseUrl = COPILOT_BASE_URL;
+    } else {
+      key = await readApiKey(deps.getSecretBackend());
+    }
   } catch {
-    return err('storage', '读取 API Key 失败，请检查系统凭据存储');
+    return err('storage', '读取 AI 凭据失败，请检查系统凭据存储');
   }
   if (key === null || key.trim() === '') {
-    return err('config', 'API Key 未配置，请先在本页保存 API Key 后再测试');
+    return err('config', provider === 'githubCopilot'
+      ? '尚未登录 GitHub Copilot，请先在本页登录'
+      : 'API Key 未配置，请先在本页保存 API Key 后再测试');
   }
 
   // ③ 真实调用（与纠错/评价同一 /chat/completions 通道；内容丢弃，只取耗时）
@@ -65,7 +77,8 @@ export async function testAiConnection(
   const started = Date.now();
   const chat = await client.chat(
     {
-      baseUrl: validated.data.baseUrl,
+      provider,
+      baseUrl,
       model: validated.data.model,
       timeoutMs: validated.data.timeoutSeconds * 1000,
       apiKey: key,

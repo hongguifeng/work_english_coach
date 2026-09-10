@@ -8,6 +8,7 @@ import { registerAiAnalysisIpc } from './ipc/aiAnalysisHandlers';
 import { registerAiTestIpc } from './ipc/aiTestHandlers';
 import { registerAppIpc } from './ipc/appHandlers';
 import { registerAiConfigIpc } from './ipc/aiConfigHandlers';
+import { registerCopilotAuthIpc } from './ipc/copilotAuthHandlers';
 import { registerDataIpc } from './ipc/dataHandlers';
 import { registerClipboardIpc } from './ipc/clipboardHandlers';
 import { registerExpressionIpc } from './ipc/expressionHandlers';
@@ -148,6 +149,7 @@ if (!gotTheLock) {
     registerAiAnalysisIpc();
     registerAiTestIpc();
     registerAiConfigIpc();
+    registerCopilotAuthIpc();
     registerDataIpc();
     registerClipboardIpc();
     registerExpressionIpc();

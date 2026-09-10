@@ -51,8 +51,39 @@ interface OpenAICompatibleClientOptions {
   fetchImpl?: FetchImpl;
 }
 
-function buildUrl(baseUrl: string): string {
-  return `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
+function modelEndpoint(config: AiRequestConfig): 'chat/completions' | 'responses' {
+  if (config.provider !== 'githubCopilot') return 'chat/completions';
+  return config.model.toLowerCase().startsWith('claude')
+    ? 'chat/completions'
+    : 'responses';
+}
+
+function buildUrl(baseUrl: string, endpoint: 'chat/completions' | 'responses'): string {
+  return `${baseUrl.replace(/\/+$/, '')}/${endpoint}`;
+}
+
+function buildRequestBody(
+  config: AiRequestConfig,
+  messages: readonly ChatMessage[],
+  endpoint: 'chat/completions' | 'responses',
+): string {
+  if (endpoint === 'responses') {
+    return JSON.stringify({
+      model: config.model,
+      input: messages.map((message) => ({
+        role: message.role,
+        content: message.content,
+      })),
+      stream: true,
+    });
+  }
+  return JSON.stringify({
+    model: config.model,
+    messages: [...messages],
+    ...(config.provider === 'githubCopilot'
+      ? { stream: true, stream_options: { include_usage: true } }
+      : {}),
+  });
 }
 
 /** 截断过长的响应体，避免把大段/敏感内容写进 debug 日志。 */
@@ -106,14 +137,22 @@ export class OpenAICompatibleClient implements AiClient {
       }
     }
     try {
-      const res = await this.fetchImpl(buildUrl(config.baseUrl), {
+      const endpoint = modelEndpoint(config);
+      const res = await this.fetchImpl(buildUrl(config.baseUrl, endpoint), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           // API Key 只进请求头；无 Key 时不发 Authorization（部分本地服务不需要）
           ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+          ...(config.provider === 'githubCopilot'
+            ? {
+                'Copilot-Integration-Id': 'vscode-chat',
+                'Editor-Version': 'vscode/1.91.0',
+                Accept: 'application/json',
+              }
+            : {}),
         },
-        body: JSON.stringify({ model: config.model, messages: [...messages] }),
+        body: buildRequestBody(config, messages, endpoint),
         signal: controller.signal,
       });
 
@@ -126,18 +165,25 @@ export class OpenAICompatibleClient implements AiClient {
           code === 'config'
             ? `AI 鉴权失败（HTTP ${res.status}），请检查 API Key 是否有效`
             : `AI 请求失败（HTTP ${res.status}）`;
-        return err(code, message, detail ? `HTTP ${res.status}: ${detail}` : `HTTP ${res.status}`);
+        return err(
+          code,
+          detail ? `${message}：${detail}` : message,
+          detail ? `HTTP ${res.status}: ${detail}` : `HTTP ${res.status}`,
+        );
       }
 
-      let data: unknown;
+      let content: string | null;
       try {
-        data = await res.json();
+        content = config.provider === 'githubCopilot'
+          ? await extractCopilotResponse(res, endpoint)
+          : extractStandardResponse(await res.json(), endpoint);
       } catch {
-        return err('parse', 'AI 响应不是有效 JSON');
+        return err('parse', 'AI 响应不是有效 JSON 或 SSE');
       }
-      const content = extractContent(data);
       if (content === null) {
-        return err('parse', 'AI 响应缺少消息内容（choices[0].message.content）');
+        return err('parse', endpoint === 'responses'
+          ? 'AI 响应缺少文本内容（responses.output）'
+          : 'AI 响应缺少消息内容（choices[0].message.content）');
       }
       return ok(content);
     } catch (e) {
@@ -157,6 +203,62 @@ export class OpenAICompatibleClient implements AiClient {
   }
 }
 
+function extractStandardResponse(
+  data: unknown,
+  endpoint: 'chat/completions' | 'responses',
+): string | null {
+  return endpoint === 'responses' ? extractResponsesContent(data) : extractContent(data);
+}
+
+/** Copilot 参考客户端使用 SSE；这里聚合文本后交给现有非流式业务层。 */
+async function extractCopilotResponse(
+  response: Response,
+  endpoint: 'chat/completions' | 'responses',
+): Promise<string | null> {
+  const raw = await response.text();
+  try {
+    return extractStandardResponse(JSON.parse(raw) as unknown, endpoint);
+  } catch {
+    // SSE events are separated by a blank line and carry JSON after `data:`.
+  }
+
+  let answer = '';
+  for (const event of raw.split(/\r?\n\r?\n/)) {
+    for (const line of event.split(/\r?\n/)) {
+      if (!line.startsWith('data:')) continue;
+      const payload = line.slice('data:'.length).trim();
+      if (!payload || payload === '[DONE]') continue;
+      const data = JSON.parse(payload) as unknown;
+      const text = endpoint === 'responses'
+        ? extractResponsesStreamText(data)
+        : extractChatStreamText(data);
+      answer += text;
+    }
+  }
+  return answer || null;
+}
+
+function extractResponsesStreamText(data: unknown): string {
+  if (typeof data !== 'object' || data === null) return '';
+  const event = data as { type?: unknown; delta?: unknown };
+  return event.type === 'response.output_text.delta' && typeof event.delta === 'string'
+    ? event.delta
+    : '';
+}
+
+function extractChatStreamText(data: unknown): string {
+  if (typeof data !== 'object' || data === null) return '';
+  const choices = (data as { choices?: unknown }).choices;
+  if (!Array.isArray(choices)) return '';
+  return choices.map((choice) => {
+    if (typeof choice !== 'object' || choice === null) return '';
+    const delta = (choice as { delta?: unknown }).delta;
+    if (typeof delta !== 'object' || delta === null) return '';
+    const content = (delta as { content?: unknown }).content;
+    return typeof content === 'string' ? content : '';
+  }).join('');
+}
+
 /** 从 chat/completions 响应体中提取 content；结构不符返回 null（交给上层判 parse 错）。 */
 function extractContent(data: unknown): string | null {
   if (typeof data !== 'object' || data === null) return null;
@@ -165,6 +267,26 @@ function extractContent(data: unknown): string | null {
   const first = choices[0] as { message?: { content?: unknown } } | null;
   const content = first?.message?.content;
   return typeof content === 'string' ? content : null;
+}
+
+/** 从 OpenAI Responses API 响应中提取 output_text。 */
+function extractResponsesContent(data: unknown): string | null {
+  if (typeof data !== 'object' || data === null) return null;
+  const direct = (data as { output_text?: unknown }).output_text;
+  if (typeof direct === 'string') return direct;
+  const output = (data as { output?: unknown }).output;
+  if (!Array.isArray(output)) return null;
+  const text = output.flatMap((item) => {
+    if (typeof item !== 'object' || item === null) return [];
+    const content = (item as { content?: unknown }).content;
+    if (!Array.isArray(content)) return [];
+    return content.flatMap((part) => {
+      if (typeof part !== 'object' || part === null) return [];
+      const value = (part as { text?: unknown }).text;
+      return typeof value === 'string' ? [value] : [];
+    });
+  }).join('');
+  return text || null;
 }
 
 /**

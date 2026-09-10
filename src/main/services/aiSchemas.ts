@@ -241,6 +241,7 @@ export function parseAnalyzeDraftInput(raw: unknown): Result<AnalyzeDraftInput> 
 // —— T042 测试连接输入（设置页表单当前的三个 AI 字段；规则与 aiSettingsSchema 共用）——
 
 export const aiConnectionTestInputSchema = z.object({
+  provider: z.enum(['apiKey', 'githubCopilot']).optional(),
   baseUrl: aiBaseUrlSchema,
   model: aiModelSchema,
   timeoutSeconds: aiTimeoutSecondsSchema,

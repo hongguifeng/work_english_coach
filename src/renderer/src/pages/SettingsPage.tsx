@@ -17,6 +17,7 @@ import {
   Input,
   InputNumber,
   Popconfirm,
+  Select,
   Space,
   Switch,
   Tag,
@@ -26,6 +27,7 @@ import { ThunderboltOutlined } from '@ant-design/icons';
 import { PageHeader } from '../components/PageHeader';
 import {
   aiSettingsSchema,
+  type CopilotModel,
   type AiSettings,
 } from '../../../shared/types/settings';
 import { useSettingsStore } from './settings/SettingsStore';
@@ -41,7 +43,7 @@ function testErrorMessage(code: string, message: string | null): string {
   if (message && message.trim()) return message;
   switch (code) {
     case 'config':
-      return '配置错误：请先保存 API Key，或检查 Base URL / 模型名称';
+      return '配置错误：请检查当前凭据方式、登录状态和模型名称';
     case 'timeout':
       return '请求超时，请检查网络或调大超时时间';
     case 'network':
@@ -66,6 +68,7 @@ export default function SettingsPage() {
   const [form] = Form.useForm<{
     baseUrl: string;
     model: string;
+    provider: 'apiKey' | 'githubCopilot';
     timeoutSeconds: number;
     saveOriginal: boolean;
     redactEnabled: boolean;
@@ -80,6 +83,15 @@ export default function SettingsPage() {
   const [keyConfigured, setKeyConfigured] = useState<boolean | null>(null);
   const [savingKey, setSavingKey] = useState(false);
   const [clearingKey, setClearingKey] = useState(false);
+  const [copilotConfigured, setCopilotConfigured] = useState<boolean | null>(null);
+  const [copilotLogin, setCopilotLogin] = useState<{ userCode: string; verificationUri: string } | null>(null);
+  const [startingCopilotLogin, setStartingCopilotLogin] = useState(false);
+  const [completingCopilotLogin, setCompletingCopilotLogin] = useState(false);
+  const [loggingOutCopilot, setLoggingOutCopilot] = useState(false);
+  const [copilotModels, setCopilotModels] = useState<CopilotModel[]>([]);
+  const [loadingCopilotModels, setLoadingCopilotModels] = useState(false);
+  const [copilotModelsError, setCopilotModelsError] = useState<string | null>(null);
+  const selectedProvider = Form.useWatch('provider', form) ?? ai.provider ?? 'apiKey';
 
   // 挂载时查询是否已配置（只返回布尔，不返回 Key）
   useEffect(() => {
@@ -94,6 +106,43 @@ export default function SettingsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (selectedProvider !== 'githubCopilot' || copilotConfigured !== true) {
+      setCopilotModels([]);
+      setCopilotModelsError(null);
+      return;
+    }
+    let active = true;
+    setLoadingCopilotModels(true);
+    setCopilotModelsError(null);
+    window.desktopAPI.copilotListModels().then((r) => {
+      if (!active) return;
+      setLoadingCopilotModels(false);
+      if (!r.ok) {
+        setCopilotModelsError(r.error.message);
+        return;
+      }
+      setCopilotModels(r.data);
+      const currentModel = form.getFieldValue('model') as string | undefined;
+      if (!currentModel || !r.data.some((model) => model.id === currentModel)) {
+        form.setFieldValue('model', r.data[0]?.id);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [copilotConfigured, form, selectedProvider]);
+
+  useEffect(() => {
+    let active = true;
+    window.desktopAPI.copilotIsConfigured().then((r) => {
+      if (active) setCopilotConfigured(r.ok ? r.data : false);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // T019：挂载时从 SQLite（经主进程）回填已持久化的 AI 配置（缺失/损坏 → 主进程给默认值）。
   useEffect(() => {
     let active = true;
@@ -101,6 +150,7 @@ export default function SettingsPage() {
       if (!active) return;
       if (r.ok) {
         form.setFieldsValue({
+          provider: r.data.provider ?? 'apiKey',
           baseUrl: r.data.baseUrl,
           model: r.data.model,
           timeoutSeconds: r.data.timeoutSeconds,
@@ -150,15 +200,18 @@ export default function SettingsPage() {
   };
 
   const handleSave = async (values: {
-    baseUrl: string;
-    model: string;
+    provider: 'apiKey' | 'githubCopilot';
+    baseUrl?: string;
+    model?: string;
     timeoutSeconds: number;
     saveOriginal: boolean;
     redactEnabled: boolean;
   }) => {
     const result = aiSettingsSchema.safeParse({
-      baseUrl: values.baseUrl.trim(),
-      model: values.model.trim(),
+      provider: values.provider,
+      // Copilot 不展示 Base URL，但数据库 schema 保留该字段以兼容旧配置。
+      baseUrl: values.baseUrl?.trim() || ai.baseUrl,
+      model: values.model?.trim() || ai.model,
       timeoutSeconds: values.timeoutSeconds,
       saveOriginal: values.saveOriginal,
       redactEnabled: values.redactEnabled,
@@ -175,24 +228,68 @@ export default function SettingsPage() {
       return;
     }
     set(r.data); // 同步会话态
-    message.success('保存成功（设置已持久化到本地数据库；API Key 独立保存在系统凭据存储）');
+    message.success(
+      selectedProvider === 'githubCopilot'
+        ? 'Copilot 设置已保存；请求将使用 GitHub Copilot 订阅'
+        : 'API 设置已保存；请求将使用 API Key 和 Base URL',
+    );
   };
 
   const handleTest = async () => {
     setTest({ kind: 'testing' });
+    const provider = selectedProvider;
     // T042：用表单「当前」值（未保存也能测）；Key 由主进程从凭据存储读取（不经过 IPC）
-    const baseUrl =
-      (form.getFieldValue('baseUrl') as string | undefined)?.trim() || ai.baseUrl;
+    const baseUrl = provider === 'githubCopilot'
+      ? ai.baseUrl
+      : ((form.getFieldValue('baseUrl') as string | undefined)?.trim() || ai.baseUrl);
     const model =
       (form.getFieldValue('model') as string | undefined)?.trim() || ai.model;
     const timeoutSeconds =
       (form.getFieldValue('timeoutSeconds') as number | undefined) ?? ai.timeoutSeconds;
-    const r = await window.desktopAPI.aiTestConnection({ baseUrl, model, timeoutSeconds });
+    const r = await window.desktopAPI.aiTestConnection({ provider, baseUrl, model, timeoutSeconds });
     if (r.ok) {
       setTest({ kind: 'ok', latencyMs: r.data.latencyMs });
     } else {
       setTest({ kind: 'fail', message: testErrorMessage(r.error.code, r.error.message) });
     }
+  };
+
+  const beginCopilotLogin = async () => {
+    setStartingCopilotLogin(true);
+    const r = await window.desktopAPI.copilotBeginLogin();
+    setStartingCopilotLogin(false);
+    if (!r.ok) {
+      message.error(r.error.message);
+      return;
+    }
+    setCopilotLogin(r.data);
+    window.open(r.data.verificationUri, '_blank', 'noopener,noreferrer');
+  };
+
+  const completeCopilotLogin = async () => {
+    setCompletingCopilotLogin(true);
+    const r = await window.desktopAPI.copilotCompleteLogin();
+    setCompletingCopilotLogin(false);
+    if (!r.ok) {
+      message.error(r.error.message);
+      return;
+    }
+    setCopilotLogin(null);
+    setCopilotConfigured(true);
+    message.success('GitHub Copilot 登录成功');
+  };
+
+  const logoutCopilot = async () => {
+    setLoggingOutCopilot(true);
+    const r = await window.desktopAPI.copilotLogout();
+    setLoggingOutCopilot(false);
+    if (!r.ok) {
+      message.error(r.error.message);
+      return;
+    }
+    setCopilotConfigured(false);
+    setCopilotLogin(null);
+    message.success('已退出 GitHub Copilot');
   };
 
   return (
@@ -209,6 +306,7 @@ export default function SettingsPage() {
           requiredMark={false}
           onFinish={handleSave}
           initialValues={{
+            provider: ai.provider ?? 'apiKey',
             baseUrl: ai.baseUrl,
             model: ai.model,
             timeoutSeconds: ai.timeoutSeconds,
@@ -217,27 +315,84 @@ export default function SettingsPage() {
           }}
         >
           <Typography.Title level={5} style={{ marginTop: 0 }}>
-            AI 服务
+            AI 连接方式
           </Typography.Title>
-          <Form.Item
-            name="baseUrl"
-            label="Base URL"
-            tooltip="OpenAI 兼容接口地址，以 /v1 结尾"
-            extra={
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                例如 https://api.openai.com/v1 或本地 http://127.0.0.1:12346/v1
-              </Typography.Text>
-            }
-          >
-            <Input placeholder="https://api.openai.com/v1" />
+          <Form.Item name="provider" label="凭据方式">
+            <Select
+              options={[
+                { value: 'apiKey', label: 'API Key' },
+                { value: 'githubCopilot', label: 'GitHub Copilot 订阅' },
+              ]}
+            />
           </Form.Item>
+          {selectedProvider === 'apiKey' ? (
+            <>
+              <Alert
+                type="info"
+                showIcon
+                message="当前请求使用 API Key"
+                description="请求会发送到下面的 Base URL，并使用 API Key 卡片中保存的密钥。"
+                style={{ marginBottom: 16 }}
+              />
+              <Form.Item
+                name="baseUrl"
+                label="Base URL"
+                tooltip="OpenAI 兼容接口地址，以 /v1 结尾"
+                extra={
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    例如 https://api.openai.com/v1 或本地 http://127.0.0.1:12346/v1
+                  </Typography.Text>
+                }
+              >
+                <Input placeholder="https://api.openai.com/v1" />
+              </Form.Item>
+            </>
+          ) : (
+            <Alert
+              type="info"
+              showIcon
+              message="当前请求使用 GitHub Copilot 订阅"
+              description="Base URL 由系统固定为 https://api.githubcopilot.com，不使用 API Key 卡片中的密钥。"
+              style={{ marginBottom: 16 }}
+            />
+          )}
           <Form.Item
             name="model"
             label="模型名称"
-            tooltip="传给 chat/completions 的 model 字段"
+            tooltip={
+              selectedProvider === 'githubCopilot'
+                ? '传给 GitHub Copilot 的模型名称'
+                : '传给 chat/completions 的 model 字段'
+            }
+            extra={
+              selectedProvider === 'githubCopilot' ? (
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  这个模型会用于 Copilot 请求；Base URL 不需要填写。
+                </Typography.Text>
+              ) : null
+            }
           >
-            <Input placeholder="例如 gpt-4o-mini 或 qwen3.8-27b" />
+            {selectedProvider === 'githubCopilot' ? (
+              <Select
+                showSearch
+                loading={loadingCopilotModels}
+                placeholder={copilotModels.length > 0 ? '选择当前订阅可用模型' : '请先登录 Copilot'}
+                options={copilotModels.map((model) => ({ value: model.id, label: model.name === model.id ? model.id : `${model.name} (${model.id})` }))}
+                notFoundContent={copilotModelsError ?? '暂无可用模型'}
+                disabled={copilotConfigured !== true || copilotModels.length === 0}
+              />
+            ) : (
+              <Input placeholder="例如 gpt-4o-mini 或 qwen3.8-27b" />
+            )}
           </Form.Item>
+          {selectedProvider === 'githubCopilot' && copilotModelsError ? (
+            <Alert
+              type="warning"
+              showIcon
+              message={`无法获取 Copilot 模型列表：${copilotModelsError}`}
+              style={{ marginBottom: 16 }}
+            />
+          ) : null}
           <Form.Item
             name="timeoutSeconds"
             label="请求超时时间（秒）"
@@ -252,14 +407,14 @@ export default function SettingsPage() {
               loading={test.kind === 'testing'}
               onClick={handleTest}
             >
-              测试连接
+              {selectedProvider === 'githubCopilot' ? '测试 Copilot 连接' : '测试 API 连接'}
             </Button>
           </Form.Item>
           {test.kind === 'ok' ? (
             <Alert
               type="success"
               showIcon
-              message={`连接测试通过（响应 ${test.latencyMs}ms）`}
+              message={`${selectedProvider === 'githubCopilot' ? 'Copilot' : 'API'} 连接测试通过（响应 ${test.latencyMs}ms）`}
               style={{ marginBottom: 16 }}
             />
           ) : null}
@@ -267,7 +422,7 @@ export default function SettingsPage() {
             <Alert
               type="error"
               showIcon
-              message={`连接测试失败：${test.message}`}
+              message={`${selectedProvider === 'githubCopilot' ? 'Copilot' : 'API'} 连接测试失败：${test.message}`}
               style={{ marginBottom: 16 }}
             />
           ) : null}
@@ -349,10 +504,54 @@ export default function SettingsPage() {
         </Form>
       </Card>
 
-      <Card
-        title="API Key（系统凭据存储）"
-        style={{ marginTop: 16 }}
-      >
+      {selectedProvider === 'githubCopilot' ? (
+      <Card title="GitHub Copilot 订阅登录" style={{ marginTop: 16 }}>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          使用 GitHub OAuth 设备登录。GitHub token 和 Copilot token 只保存在 Windows 系统凭据存储，不会进入数据库或渲染进程。
+        </Typography.Text>
+        <div style={{ margin: '12px 0' }}>
+          <Tag color={copilotConfigured ? 'green' : 'default'}>
+            {copilotConfigured === null ? '查询中…' : copilotConfigured ? '已登录' : '未登录'}
+          </Tag>
+        </div>
+        {copilotLogin ? (
+          <Alert
+            type="info"
+            showIcon
+            message={`请在浏览器中输入验证码：${copilotLogin.userCode}`}
+            description={
+              <Space direction="vertical">
+                <Typography.Link href={copilotLogin.verificationUri} target="_blank">
+                  打开 GitHub 验证页面
+                </Typography.Link>
+                <Button loading={completingCopilotLogin} onClick={completeCopilotLogin}>
+                  我已完成授权
+                </Button>
+              </Space>
+            }
+            style={{ marginBottom: 12 }}
+          />
+        ) : null}
+        <Space wrap>
+          <Button loading={startingCopilotLogin} onClick={beginCopilotLogin}>
+            登录 GitHub Copilot
+          </Button>
+          {copilotConfigured ? (
+            <Popconfirm
+              title="确定要退出 GitHub Copilot 吗？"
+              okText="退出"
+              cancelText="取消"
+              onConfirm={logoutCopilot}
+            >
+              <Button danger loading={loggingOutCopilot}>退出登录</Button>
+            </Popconfirm>
+          ) : null}
+        </Space>
+      </Card>
+      ) : null}
+
+      {selectedProvider === 'apiKey' ? (
+      <Card title="API Key（系统凭据存储）" style={{ marginTop: 16 }}>
         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
           API Key 保存在 Windows 系统凭据存储（DPAPI），仅当前 Windows 用户可读；
           不写入数据库、不进入日志。这里只展示是否已配置，不显示完整 Key。
@@ -396,6 +595,7 @@ export default function SettingsPage() {
           ) : null}
         </div>
       </Card>
+      ) : null}
     </div>
   );
 }
