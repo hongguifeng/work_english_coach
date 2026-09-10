@@ -92,6 +92,24 @@ Preload 只能暴露最小化、类型安全的 API，不得暴露完整 ipcRend
 10. 完成后即时更新 todo list
 11. 完成后要提交代码到 git
 
+## UI 截图验证方法（纯浏览器 + agent-browser）
+
+对 renderer 侧改动（布局/CSS/组件）截图验证时，不用启动 Electron，按以下流程（已验证可行）：
+
+1. **启动只渲染 renderer 的 Vite（无主进程）**：
+   `nohup npx vite --config vite.renderer.e2e.mjs --port 5173 >/tmp/wec-vite.log 2>&1 &`，
+   等 3-5 秒后 `curl -s -o /dev/null -w "%{http_code}" http://localhost:5173/` 确认 200。
+2. **路由是 HashRouter**：目标页 URL 必须写成 `http://localhost:5173/#/history`（写 `/history` 只会回退到工作区）。
+3. **坑：大部分页面挂载时调 `window.desktopAPI`**（preload 注入，纯浏览器里不存在），未定义会直接抛错白屏（无 error boundary）。工作区页挂载时不调 API，是唯一能直接打开的页。
+   解法：先打开工作区页，用 `agent-browser eval --stdin` 注入完整 `window.desktopAPI` stub（实现 `src/shared/types/desktopApi.ts` 全部方法，均返回 Promise 的 `Result`：list 类 → `{ok:true,data:[]}`，布尔 → `false`，`aiConfigGet` → 返回一份 DEFAULT 配置，`onDataChanged` → `() => () => {}`）；之后**只用 `location.hash = '#/xxx'` 客户端跳转**——hash 跳转不重载页面，stub 保留；整页 reload 会丢 stub 重新白屏。
+4. **agent-browser 常用命令**：
+   - `agent-browser session id --scope worktree --prefix 名字` 生成 session，`export AGENT_BROWSER_SESSION=...` 后同一 session 复用；
+   - `open <url>` / `wait <ms>` / `screenshot <path.png>` / `console` / `close`；
+   - 跑脚本用 heredoc 传 `eval --stdin`；**脚本必须包在 IIFE `(() => {...})()` 里**，顶层 const 会让下一次 eval 报 "Identifier already declared"；
+   - 量布局：eval 里 `getBoundingClientRect()` 比对 top/height 验证对齐；遍历 `document.styleSheets` 的 `cssRules` 能查出到底是哪条 CSS 规则生效（antd v5 用 `:where()` 低特异性 + CSS-in-JS，写覆盖规则时注意选择器实际 DOM 结构，如 `.ant-card-head-title` 隔了一层 `.ant-card-head-wrapper`，不能写直接子选择器）。
+5. **收尾**：`agent-browser close` + 杀掉 5173 的 vite 进程（PowerShell：`Get-NetTCPConnection -LocalPort 5173 -State Listen` → `Stop-Process -Id <OwningProcess> -Force`）。
+6. **局限**：此法只验证 renderer 渲染（布局、样式、组件交互），页内数据都是 stub 空数据。涉及主进程的功能（AI 调用、数据库、凭据、IPC handler）必须用真 app（`npm run dev`）或 unit test 验证；main 侧代码改动后 dev server 需 Ctrl+C 重启才生效，renderer 侧 HMR 即时生效。
+
 ## AI 测试服务
 测试 AI 相关功能时可以使用 http://127.0.0.1:12346/v1/chat/completions， 模型id为：qwen3.8-27b，不需要 key
 
