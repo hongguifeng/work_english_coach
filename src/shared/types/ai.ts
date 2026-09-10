@@ -59,6 +59,11 @@ export type PracticeTask = {
 };
 
 export type AnalyzeDraftResult = {
+  /**
+   * AI 对英文草稿的忠实回译（先翻译再纠错，作为判断 AI 是否理解原稿的参照）；
+   * 可选：部分模型可能未返回。仅工作区展示，不持久化。
+   */
+  translationZh?: string;
   minimalRevision: string;
   naturalRevision: string;
   shouldClarify: boolean;

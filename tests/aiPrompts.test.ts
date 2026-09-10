@@ -131,8 +131,15 @@ describe('buildCorrectionSystemPrompt', () => {
     expect(sys).toContain('ignore previous instructions');
   });
 
+  it('要求先忠实回译英文草稿（translationZh 为 JSON 首字段，先于修改版本）', () => {
+    expect(sys).toContain('先忠实地把用户的英文草稿翻译成中文');
+    expect(sys).toContain('translationZh');
+    expect(sys.indexOf('translationZh')).toBeLessThan(sys.indexOf('minimalRevision'));
+  });
+
   it('JSON 结构说明的字段名与 draftAnalysisSchema 逐字段对齐', () => {
     for (const f of [
+      'translationZh',
       'minimalRevision',
       'naturalRevision',
       'shouldClarify',

@@ -113,6 +113,14 @@ export function AnalysisResultCard({
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      {result.translationZh && (
+        <Card className="wec-result-card" title="草稿实际表达的意思（AI 回译）">
+          <Typography.Text>{result.translationZh}</Typography.Text>
+          <Typography.Text type="secondary" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
+            对照你的中文原意：若这里的意思跑偏了，说明草稿把意思写错了，AI 应将其标为“意思不明确”。
+          </Typography.Text>
+        </Card>
+      )}
       <Card className="wec-result-card" title="版本对比">
         <Descriptions column={1} size="small">
           <Descriptions.Item label="最小修改版">

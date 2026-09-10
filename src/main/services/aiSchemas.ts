@@ -88,6 +88,8 @@ const practiceSchema: z.ZodType<{
 
 // —— 三个顶层 Schema（输出类型锁定为 shared 契约类型）——
 export const draftAnalysisSchema = z.object({
+  // 可选：AI 对草稿的忠实回译，模型偶尔省略时不致解析失败
+  translationZh: z.string().optional(),
   minimalRevision: z.string(),
   naturalRevision: z.string(),
   shouldClarify: z.boolean().default(false),

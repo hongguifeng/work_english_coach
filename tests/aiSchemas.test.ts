@@ -14,6 +14,7 @@ import {
 // —— 合法样例 ——
 function validDraftAnalysis(): Record<string, unknown> {
   return {
+    translationZh: '周五当天我会把报告发出去。',
     minimalRevision: 'I will send the report by Friday.',
     naturalRevision: "I'll get the report to you by Friday.",
     shouldClarify: false,
@@ -92,6 +93,15 @@ describe('parseDraftAnalysis', () => {
       expect(res.data.keyLearningPoint.skillKey).toBe('tense:will-vs-going-to');
       expect(res.data.practice.keywords).toEqual(['will', 'submit']);
     }
+  });
+
+  it('accepts objects with or without the optional translationZh field', () => {
+    const withTr = validDraftAnalysis();
+    withTr.translationZh = '周五当天我会把报告发出去。';
+    expect(parseDraftAnalysis(JSON.stringify(withTr)).ok).toBe(true);
+    const withoutTr = validDraftAnalysis();
+    delete withoutTr.translationZh;
+    expect(parseDraftAnalysis(JSON.stringify(withoutTr)).ok).toBe(true);
   });
 
   it('accepts JSON wrapped in markdown fences with surrounding text', () => {
