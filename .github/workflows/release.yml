@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   build-and-release:
@@ -39,7 +40,14 @@ jobs:
         run: npm run build
 
       - name: Package (NSIS installer + win-unpacked dir)
-        run: npx electron-builder --win --x64
+        run: npx electron-builder --win --x64 > eb.log 2>&1 || { tail -n 400 eb.log; exit 1; }
+
+      - name: Report failure as GitHub Issue (debug)
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FAIL_LOG: eb.log
+        run: node scripts/ci-fail-report.mjs
 
       - name: Zip win-unpacked (portable)
         shell: pwsh
