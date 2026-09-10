@@ -20,4 +20,3 @@ tmp-*.cjs
 !tmp-t040-prod.mjs
 
 # 文档截图（由 scripts/capture-screenshots.mjs 生成）
-docs/screenshots/

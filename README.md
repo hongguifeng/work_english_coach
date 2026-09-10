@@ -95,6 +95,12 @@ npm run screenshots  # 重新生成 docs/screenshots 下的演示截图（--with
 npm run package:win  # 构建 NSIS 安装程序（release/）
 ```
 
+### GitHub Actions（CI 与发布）
+
+- **CI**（push / PR）：typecheck + lint + 单元测试（ubuntu-latest）。
+- **Release**（打 tag `v*.*.*`）：windows-latest 上构建 x64（NSIS 安装器 + win-unpacked 免安装 zip），自动创建 GitHub Release（版本号 = tag 去掉 `v`，仓库内 version 保持 dev 值不变）。
+- 打包步骤失败时会自动创建一个 debug issue（含 electron-builder 日志尾部），无需 token 即可查看真实错误。
+
 ### 目录结构
 
 ```
