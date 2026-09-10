@@ -87,13 +87,10 @@ export default function App() {
             minHeight: 56,
             display: 'flex',
             alignItems: 'center',
-            gap: 12,
             borderBottom: '1px solid #f0f0f0',
           }}
         >
-          <Typography.Text type="secondary" style={{ fontSize: 13, flexShrink: 0 }}>
-            WorkEnglish Coach
-          </Typography.Text>
+          {/* 品牌名已由左侧导航显示，这里只留当前页面标题（避免重复） */}
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
             <Typography.Text strong style={{ fontSize: 15, lineHeight: '20px' }}>
               {currentNav.title}
