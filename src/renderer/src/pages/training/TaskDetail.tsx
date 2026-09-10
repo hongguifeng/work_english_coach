@@ -17,8 +17,7 @@ interface TaskDetailProps {
 }
 
 /**
- * 任务详情（T009）：题干 + 场景 + 提示 + 参考答案 + 作答 + 提交
- * T031 将用真实 AI 评价替换 mock 结果块。
+ * 任务详情：题干 + 场景 + 提示 + 参考答案 + 作答 + 提交（AI 评价结果在下方展示）
  */
 export function TaskDetail({
   task,
@@ -91,7 +90,6 @@ export function TaskDetail({
           message={`已提交。本次${usedHint ? '使用了提示' : '未使用提示'}${
             revealed ? '，查看了参考答案' : ''
           }`}
-          description="AI 评价结果将在 T031 接入后显示；本题的复习调度将在 T030 生效。"
           className="wec-hint-alert"
         />
       ) : (
@@ -102,7 +100,7 @@ export function TaskDetail({
             disabled={loading || answer.trim().length === 0}
             onClick={onSubmit}
           >
-            {loading ? 'AI 评价中…（mock）' : '提交答案'}
+            {loading ? 'AI 评价中…' : '提交答案'}
           </Button>
           <Button disabled={usedHint || loading} onClick={onUseHint}>
             提示（关键词）

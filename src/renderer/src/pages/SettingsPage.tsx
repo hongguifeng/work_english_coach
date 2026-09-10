@@ -310,7 +310,7 @@ export default function SettingsPage() {
     <div style={{ maxWidth: 720 }}>
       <PageHeader
         title="设置"
-        description="AI 服务与数据管理。API Key 由系统凭据存储保管（T018）；AI 配置持久化到本地数据库（T019）；「测试连接」发起真实最小 AI 调用（T042）。"
+        description="AI 服务与数据管理。API Key 由系统凭据存储保管；AI 配置持久化到本地数据库；「测试连接」发起真实最小 AI 调用。"
       />
 
       <Card>

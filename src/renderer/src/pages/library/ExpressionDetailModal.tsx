@@ -130,7 +130,7 @@ export default function ExpressionDetailModal({
           <Typography.Text>{dayjs(record.nextReviewAt).format('YYYY-MM-DD')}</Typography.Text>
         ) : (
           <Typography.Text type="secondary">
-            未安排（由复习循环在 T027 自动维护）
+            未安排（由复习循环自动维护）
           </Typography.Text>
         )}
       </Row>
