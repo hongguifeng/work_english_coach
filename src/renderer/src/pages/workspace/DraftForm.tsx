@@ -1,13 +1,16 @@
+import { useCallback, useState } from 'react';
 import {
   Button,
   Checkbox,
   Col,
   Form,
   Input,
+  App as AntApp,
   Row,
   Segmented,
   Select,
 } from 'antd';
+import { CopyOutlined } from '@ant-design/icons';
 import {
   AUDIENCE_OPTIONS,
   SOURCE_TYPE_OPTIONS,
@@ -50,6 +53,32 @@ export const INITIAL_VALUES: DraftFormValues = {
  */
 export function DraftForm({ loading, onSubmit, initialValues = INITIAL_VALUES, onValuesChange }: DraftFormProps) {
   const [form] = Form.useForm<DraftFormValues>();
+  const { message } = AntApp.useApp();
+  const [pasting, setPasting] = useState(false);
+
+  /** 从系统剪贴板粘贴英文草稿（sandbox 渲染进程无法直接读剪贴板，走 IPC） */
+  const handlePasteEnglish = useCallback(async () => {
+    setPasting(true);
+    const r = await window.desktopAPI.clipboardRead();
+    setPasting(false);
+    if (!r.ok) {
+      message.error(r.error.message);
+      return;
+    }
+    const text = r.data.trim();
+    if (!text) {
+      message.warning('剪贴板内容为空');
+      return;
+    }
+    if (text.length > 10000) {
+      message.error('剪贴板内容超过 10000 字符，无法粘贴');
+      return;
+    }
+    form.setFieldValue('originalEnglish', text);
+    // setFieldValue 不触发 onValuesChange，手动同步给父组件（持久化到 store）
+    onValuesChange?.({ originalEnglish: text });
+    message.success('已从剪贴板粘贴');
+  }, [form, message, onValuesChange]);
 
   const handleFinish = (values: DraftFormValues) => {
     const {
@@ -97,7 +126,21 @@ export function DraftForm({ loading, onSubmit, initialValues = INITIAL_VALUES, o
 
       <Form.Item
         name="originalEnglish"
-        label="英文草稿（必填）"
+        label={
+          <span>
+            英文草稿（必填）
+            <Button
+              type="link"
+              size="small"
+              icon={<CopyOutlined />}
+              loading={pasting}
+              onClick={handlePasteEnglish}
+              style={{ padding: 0, marginLeft: 8 }}
+            >
+              从剪贴板粘贴
+            </Button>
+          </span>
+        }
         rules={[
           { required: true, message: '请输入英文草稿' },
           { min: 1, message: '英文草稿不能为空' },

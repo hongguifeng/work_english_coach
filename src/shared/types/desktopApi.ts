@@ -89,6 +89,8 @@ export interface DesktopApi {
   aiAnalyzeDraftCancel(requestId: string): Promise<Result<boolean>>;
   /** 把文本写入系统剪贴板（成功 ok(true)；异常 storage 错误）（T024）。 */
   clipboardWrite(text: string): Promise<Result<boolean>>;
+  /** 读取系统剪贴板文本（成功 ok(text)，剪贴板为空时是空字符串；异常 storage 错误）（T024）。 */
+  clipboardRead(): Promise<Result<string>>;
   /**
    * 用户确认纠错结果后保存到数据库：样本 + 错误列表 + 重点知识点（upsert），
    * 可选把自然表达版存为表达。隐私：saveOriginal=false 时不写入原文

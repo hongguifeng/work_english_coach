@@ -71,6 +71,7 @@ const desktopApi: DesktopApi = {
     invoke<AnalyzeDraftResult>('ai:analyze-draft', input, requestId),
   aiAnalyzeDraftCancel: (requestId: string) => invoke<boolean>('ai:analyze-draft-cancel', requestId),
   clipboardWrite: (text: string) => invoke<boolean>('clipboard:write', text),
+  clipboardRead: () => invoke<string>('clipboard:read'),
   // T025：保存纠错结果（主进程在 IPC 边界重新 Zod 校验后写库）。
   saveAnalysisResult: (payload: SaveCorrectionPayload) =>
     invoke<SaveCorrectionSummary>('result:save', payload),
