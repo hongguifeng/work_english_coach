@@ -40,7 +40,7 @@ jobs:
         run: npm run build
 
       - name: Package (NSIS installer + win-unpacked dir)
-        run: npx electron-builder --win --x64 > eb.log 2>&1 || { tail -n 400 eb.log; exit 1; }
+        run: npx electron-builder --win --x64 --publish never > eb.log 2>&1 || { tail -n 400 eb.log; exit 1; }
 
       - name: Report failure as GitHub Issue (debug)
         if: failure()
