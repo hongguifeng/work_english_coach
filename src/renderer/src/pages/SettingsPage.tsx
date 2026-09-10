@@ -1,9 +1,10 @@
-// 设置页（T011 骨架 / T017 数据管理 / T018 API Key 凭据存储 / T019 AI 配置持久化）
+// 设置页（T011 骨架 / T017 数据管理 / T018 API Key 凭据存储 / T019 AI 配置持久化 / T042 测试连接）
 // - AI 服务非密钥设置：Zod 校验后经 IPC 持久化到 SQLite settings 表（T019）；
 //   挂载时从主进程回填，保存按钮带 loading。
 // - API Key：独立卡片，走系统凭据存储（keytar/DPAPI，T018）。
 //   * 只展示“是否已配置”，绝不显示完整 Key；保存后清空输入框，不在 UI 残留原文
-// - 测试连接：mock（T021 接入真实调用）
+// - 测试连接（T042）：真实最小 AI 调用（复用纠错/评价的 /chat/completions 通道）；
+//   Key 由主进程从凭据存储读取（不经过 IPC），响应内容丢弃，只返回耗时。
 // - 导出数据 / 删除全部数据：真实 IPC + SQLite（T017）
 import { useEffect, useState } from 'react';
 import {
@@ -32,8 +33,27 @@ import { useSettingsStore } from './settings/SettingsStore';
 type TestResult =
   | { kind: 'idle' }
   | { kind: 'testing' }
-  | { kind: 'ok' }
+  | { kind: 'ok'; latencyMs: number }
   | { kind: 'fail'; message: string };
+
+/** 把测试连接失败映射为可理解的中文（与 WorkspacePage 的 humanMessage 同风格）。 */
+function testErrorMessage(code: string, message: string | null): string {
+  if (message && message.trim()) return message;
+  switch (code) {
+    case 'config':
+      return '配置错误：请先保存 API Key，或检查 Base URL / 模型名称';
+    case 'timeout':
+      return '请求超时，请检查网络或调大超时时间';
+    case 'network':
+      return '网络错误：无法连接到该 AI 服务，请检查 Base URL 是否可达';
+    case 'parse':
+      return 'AI 服务返回了无法解析的响应，请检查服务状态';
+    case 'validation':
+      return '输入不符合要求，请检查后重试';
+    default:
+      return '发生未知错误，请重试';
+  }
+}
 
 /** API Key 最大长度（与主进程 secretService 保持一致）。 */
 const MAX_API_KEY_LENGTH = 512;
@@ -160,29 +180,26 @@ export default function SettingsPage() {
 
   const handleTest = async () => {
     setTest({ kind: 'testing' });
-    // mock：T021 替换为真实 /v1/models 或最小 chat 调用
-    await new Promise((r) => setTimeout(r, 800));
-    const parsed = aiSettingsSchema.safeParse({
-      ...ai,
-      baseUrl:
-        (form.getFieldValue('baseUrl') as string | undefined)?.trim() ?? ai.baseUrl,
-      model: (form.getFieldValue('model') as string | undefined)?.trim() ?? ai.model,
-    });
-    if (!parsed.success) {
-      setTest({
-        kind: 'fail',
-        message: parsed.error.issues[0]?.message ?? '设置不合法',
-      });
-      return;
+    // T042：用表单「当前」值（未保存也能测）；Key 由主进程从凭据存储读取（不经过 IPC）
+    const baseUrl =
+      (form.getFieldValue('baseUrl') as string | undefined)?.trim() || ai.baseUrl;
+    const model =
+      (form.getFieldValue('model') as string | undefined)?.trim() || ai.model;
+    const timeoutSeconds =
+      (form.getFieldValue('timeoutSeconds') as number | undefined) ?? ai.timeoutSeconds;
+    const r = await window.desktopAPI.aiTestConnection({ baseUrl, model, timeoutSeconds });
+    if (r.ok) {
+      setTest({ kind: 'ok', latencyMs: r.data.latencyMs });
+    } else {
+      setTest({ kind: 'fail', message: testErrorMessage(r.error.code, r.error.message) });
     }
-    setTest({ kind: 'ok' });
   };
 
   return (
     <div style={{ maxWidth: 720 }}>
       <PageHeader
         title="设置"
-        description="AI 服务与数据管理。API Key 由系统凭据存储保管（T018）；AI 配置持久化到本地数据库（T019），测试连接将在 T021 接入真实调用。"
+        description="AI 服务与数据管理。API Key 由系统凭据存储保管（T018）；AI 配置持久化到本地数据库（T019）；「测试连接」发起真实最小 AI 调用（T042）。"
       />
 
       <Card>
@@ -242,7 +259,7 @@ export default function SettingsPage() {
             <Alert
               type="success"
               showIcon
-              message="连接测试通过（mock；T021 将发起真实请求验证）"
+              message={`连接测试通过（响应 ${test.latencyMs}ms）`}
               style={{ marginBottom: 16 }}
             />
           ) : null}

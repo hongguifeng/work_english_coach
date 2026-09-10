@@ -1,5 +1,9 @@
 import type { Result } from './app';
-import type { AiSettings } from './settings';
+import type {
+  AiConnectionTestInput,
+  AiConnectionTestResult,
+  AiSettings,
+} from './settings';
 import type { DataChangedEvent, DeleteSummary, ExportResult } from './data';
 import type { AnalyzeDraftInput, AnalyzeDraftResult } from './ai';
 import type { SaveCorrectionPayload, SaveCorrectionSummary } from './saveResult';
@@ -56,6 +60,12 @@ export interface DesktopApi {
   aiConfigGet(): Promise<Result<AiSettings>>;
   /** 校验并持久化 AI 非密钥配置（非法输入 → validation 错误；绝不含 API Key）（T019）。 */
   aiConfigSave(settings: AiSettings): Promise<Result<AiSettings>>;
+  /**
+   * 测试连接（T042）：用表单当前的 Base URL / 模型 / 超时发起一次真实最小 AI 调用
+   * （Key 由主进程从凭据存储读取，不经过 IPC；响应内容丢弃，只返回耗时）。
+   * 未配置 Key → config；网络不可达 → network；超时 → timeout；响应结构异常 → parse。
+   */
+  aiTestConnection(input: AiConnectionTestInput): Promise<Result<AiConnectionTestResult>>;
   /**
    * 提交草稿进行 AI 检查，返回结构化纠错结果（AnalyzeDraftResult）。
    * 非法输入 → validation；未配 Key → config；超时 → timeout；

@@ -19,6 +19,12 @@ import type {
   IssueCategory,
   IssueSeverity,
 } from '../../shared/types/ai';
+import type { AiConnectionTestInput } from '../../shared/types/settings';
+import {
+  aiBaseUrlSchema,
+  aiModelSchema,
+  aiTimeoutSecondsSchema,
+} from '../../shared/types/settings';
 import type {
   ReviewEvaluation,
   ReviewGenerationResult,
@@ -230,4 +236,19 @@ export function parseAnalyzeDraftInput(raw: unknown): Result<AnalyzeDraftInput> 
   const r = analyzeDraftInputSchema.safeParse(raw);
   if (!r.success) return err('validation', formatZodError(r.error));
   return ok(r.data as AnalyzeDraftInput);
+}
+
+// —— T042 测试连接输入（设置页表单当前的三个 AI 字段；规则与 aiSettingsSchema 共用）——
+
+export const aiConnectionTestInputSchema = z.object({
+  baseUrl: aiBaseUrlSchema,
+  model: aiModelSchema,
+  timeoutSeconds: aiTimeoutSecondsSchema,
+});
+
+/** 校验测试连接输入；非法时返回 validation 错误（不会发送 AI）。 */
+export function parseAiConnectionTestInput(raw: unknown): Result<AiConnectionTestInput> {
+  const r = aiConnectionTestInputSchema.safeParse(raw);
+  if (!r.success) return err('validation', formatZodError(r.error));
+  return ok(r.data);
 }

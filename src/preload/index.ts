@@ -4,7 +4,11 @@ import { invoke } from './api';
 import type { DesktopApi } from '../shared/types/desktopApi';
 import type { DataChangedEvent } from '../shared/types/data';
 import type { Result } from '../shared/types/app';
-import type { AiSettings } from '../shared/types/settings';
+import type {
+  AiConnectionTestInput,
+  AiConnectionTestResult,
+  AiSettings,
+} from '../shared/types/settings';
 import type { AnalyzeDraftInput, AnalyzeDraftResult } from '../shared/types/ai';
 import type { SaveCorrectionPayload, SaveCorrectionSummary } from '../shared/types/saveResult';
 import type {
@@ -51,6 +55,9 @@ const desktopApi: DesktopApi = {
   // T019：AI 非密钥配置持久化到 SQLite settings 表（绝不含 API Key）。
   aiConfigGet: () => invoke<AiSettings>('aiConfig:get'),
   aiConfigSave: (settings: AiSettings) => invoke<AiSettings>('aiConfig:save', settings),
+  // T042：测试连接（真实最小 AI 调用）；Key 只在主进程，响应内容丢弃只返回耗时。
+  aiTestConnection: (input: AiConnectionTestInput) =>
+    invoke<AiConnectionTestResult>('ai:test-connection', input),
   // T022：草稿检查（AI 纠错）。API Key 只在主进程；结果经 Zod 校验后返回。
   aiAnalyzeDraft: (input: AnalyzeDraftInput, requestId: string) =>
     invoke<AnalyzeDraftResult>('ai:analyze-draft', input, requestId),

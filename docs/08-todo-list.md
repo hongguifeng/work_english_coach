@@ -372,7 +372,7 @@ npm run lint
 
 - 共享类型：`shared/types/settings.ts`——`aiSettingsSchema`（Zod：baseUrl 合法 http(s) URL ≤500、model 非空 ≤100、timeoutSeconds 整数 5-300、saveOriginal/redactEnabled 布尔）+ `DEFAULT_AI_SETTINGS`（默认指向本地测试服务 127.0.0.1:12346/v1 / qwen3.8-27b）。API Key 不进入该类型（docs/03 §2.7：settings 表只存 key/value，Key 走系统凭据存储）。
 - 页内状态：`pages/settings/SettingsStore.ts`——zustand persist 到 localStorage（partialize 只持久化 ai，API Key 仅内存、绝不落盘，符合 docs/01 §5.5；T016 切换 IPC+SQLite、T018 切换 DPAPI）。
-- 页面：`pages/SettingsPage.tsx` 三段式——AI 服务（Base URL / 模型 / API Key 密码输入框 / 超时 / 测试连接按钮，测试为 mock：800ms 后按校验结果显示成功/失败 Alert，T021 接真实调用）；数据与隐私（保存原文、启用脱敏两个 Switch，各带影响说明）；数据管理（导出数据按钮——mock 提示“T012 接入数据库后生效”；删除全部数据——danger 按钮 + Popconfirm 二次确认“不可恢复”）。
+- 页面：`pages/SettingsPage.tsx` 三段式——AI 服务（Base URL / 模型 / API Key 密码输入框 / 超时 / 测试连接按钮，测试为 mock：800ms 后按校验结果显示成功/失败 Alert，T021 接真实调用（后由 T042 补上））；数据与隐私（保存原文、启用脱敏两个 Switch，各带影响说明）；数据管理（导出数据按钮——mock 提示“T012 接入数据库后生效”；删除全部数据——danger 按钮 + Popconfirm 二次确认“不可恢复”）。
 - 保存流程：点击“保存设置”→ antd Form 校验（必填）→ Zod safeParse（失败=红色 message 保存失败+原因，不写 store；成功=写 store + 绿色提示，并注明 API Key 未写入磁盘）。
 - 验证：tsc ✅、eslint ✅、build+smoke ✅；WEC_AUTO_JS 截图确认页面渲染与“测试连接”成功 Alert。
 
@@ -1084,6 +1084,19 @@ npm run db:migrate
 - [x] 编写如何备份数据说明。（§7，应用内导出 JSON + 目录复制 + 凭据迁移）
 
 > 完成记录（2026-04）：`docs/10-user-guide.md`（7 节，与代码实际行为核对：路由 `#/today` `#/expressions` `#/record`、`secret:clear` 独立清除、keytar 凭据名 = 应用名）。
+
+## T042：设置页「测试连接」（真实 AI 调用）
+
+背景：T011 遗留的 mock（800ms + 本地校验）；原计划 T021 接入，但 T021 实际范围仅为 Zod Schema，此处补上。
+
+- [x] 用表单「当前」的 Base URL / 模型 / 超时发起一次真实 `POST {baseUrl}/chat/completions` 最小调用（与纠错/评价同一通道；prompt 只要求回复 "pong"）。
+- [x] API Key 只在主进程从凭据存储读取，不经过 IPC；未配置 → config 错误并提示先保存 Key。
+- [x] 响应内容丢弃（不展示、不存储、不进日志），只返回 latencyMs 供 UI 展示「响应 Xms」。
+- [x] 失败复用 T020 统一分类（network/timeout/config/parse/canceled），渲染进程映射为中文提示。
+- [x] 单元测试 11 例（validation 不调 AI / 无 Key 不调 AI / 成功取耗时 / ping-pong Prompt / 错误透传 / 凭据异常）。
+- [x] 真实服务器冒烟（127.0.0.1:12346, qwen3.8-27b）：ok/773ms；死端口 → network；无 Key → config。
+
+> 完成记录（2026-04）：新增 `aiConnectionTestService` + `ai:test-connection` IPC + preload `aiTestConnection`；`aiSettingsSchema` 三字段 Schema 提取共享（防规则漂移）；设置页 mock 替换为真实调用 + 耗时展示。
 
 ---
 

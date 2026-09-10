@@ -5,6 +5,7 @@ import { runMigrations } from './db/migrations';
 
 import { createMainWindow } from './windows/createMainWindow';
 import { registerAiAnalysisIpc } from './ipc/aiAnalysisHandlers';
+import { registerAiTestIpc } from './ipc/aiTestHandlers';
 import { registerAppIpc } from './ipc/appHandlers';
 import { registerAiConfigIpc } from './ipc/aiConfigHandlers';
 import { registerDataIpc } from './ipc/dataHandlers';
@@ -145,6 +146,7 @@ if (!gotTheLock) {
     }
     registerAppIpc();
     registerAiAnalysisIpc();
+    registerAiTestIpc();
     registerAiConfigIpc();
     registerDataIpc();
     registerClipboardIpc();
