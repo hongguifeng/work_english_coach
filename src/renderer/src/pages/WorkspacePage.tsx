@@ -1,6 +1,5 @@
 import { message } from 'antd';
 import { useCallback, useRef, useState } from 'react';
-import { PageHeader } from '../components/PageHeader';
 import { AnalysisResultCard } from './workspace/AnalysisResultCard';
 import { DraftForm, type DraftFormSubmit } from './workspace/DraftForm';
 import { useWorkspaceStore } from '../lib/workspaceStore';
@@ -116,10 +115,6 @@ export default function WorkspacePage() {
 
   return (
     <div>
-      <PageHeader
-        title="工作区"
-        description="记录中文原意和英文草稿，调用 AI 分析并查看修改结果"
-      />
       <div className="wec-workspace-columns">
         <div className="wec-form-col">
           <div className="wec-panel">

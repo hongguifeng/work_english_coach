@@ -25,10 +25,10 @@ const { Sider, Header, Content } = Layout;
 /** 路由 → 菜单项/标题（T007：顶部标题区域随路由联动） */
 const NAV_ITEMS = [
   { key: '/', icon: <CompassOutlined />, title: '工作区' },
+  { key: '/history', icon: <HistoryOutlined />, title: '历史记录' },
   { key: '/today', icon: <AppstoreOutlined />, title: '今日训练' },
   { key: '/expressions', icon: <BookOutlined />, title: '表达库' },
   { key: '/errors', icon: <AlertOutlined />, title: '错误档案' },
-  { key: '/history', icon: <HistoryOutlined />, title: '历史记录' },
   { key: '/stats', icon: <BarChartOutlined />, title: '学习统计' },
   { key: '/record', icon: <AudioOutlined />, title: '录音' },
   { key: '/settings', icon: <SettingOutlined />, title: '设置' },
@@ -58,9 +58,9 @@ export default function App() {
   return (
     <Layout style={{ height: '100vh' }}>
       {/* 左侧导航：固定在布局外层，页面切换时不参与重排，避免闪烁 */}
-      <Sider width={220} theme="light" style={{ borderInlineEnd: '1px solid #f0f0f0' }}>
+      <Sider width={160} theme="light" style={{ borderInlineEnd: '1px solid #f0f0f0' }}>
         <div style={{ padding: '20px 16px 12px' }}>
-          <Typography.Title level={4} style={{ margin: 0 }}>
+          <Typography.Title level={4} style={{ margin: 0, fontSize: 15, lineHeight: '22px' }}>
             WorkEnglish Coach
           </Typography.Title>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
