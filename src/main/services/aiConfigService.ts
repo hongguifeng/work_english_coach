@@ -36,7 +36,7 @@ export interface AiRequestConfig {
   baseUrl: string;
   model: string;
   timeoutMs: number;
-  reasoningEffort?: 'none' | 'low' | 'medium' | 'high';
+  reasoningEffort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh';
   /** 用户在设置页选择的 AI 接口；未设置时由客户端按 provider/模型自动选择。 */
   apiEndpoint?: AiApiEndpoint;
   apiKey: string;

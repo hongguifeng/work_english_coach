@@ -22,7 +22,7 @@ export const aiTimeoutSecondsSchema = z
   .int('超时时间必须为整数')
   .min(5, '最小 5 秒')
   .max(300, '最大 300 秒');
-export const aiReasoningEffortSchema = z.enum(['none', 'low', 'medium', 'high']);
+export const aiReasoningEffortSchema = z.enum(['none', 'low', 'medium', 'high', 'xhigh']);
 /** AI 接口类型：OpenAI Chat Completions（/chat/completions）或 Responses（/responses）。 */
 export const aiApiEndpointSchema = z.enum(['chatCompletions', 'responses']);
 export type AiApiEndpoint = z.infer<typeof aiApiEndpointSchema>;

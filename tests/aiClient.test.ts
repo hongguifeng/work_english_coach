@@ -137,9 +137,50 @@ describe('OpenAICompatibleClient', () => {
     const body = JSON.parse(String(lastInit?.body)) as { model: string; input: unknown[]; stream?: boolean; reasoning?: unknown };
     expect(body.model).toBe('qwen3.8-27b');
     expect(body.input).toEqual(MESSAGES);
-    // 非 Copilot 的 responses 请求不走 SSE，不带 stream / reasoning
+    // 非 Copilot 的 responses 请求不走 SSE；reasoningEffort 为 none（缺省）时不带 reasoning
     expect(body.stream).toBeUndefined();
     expect(body.reasoning).toBeUndefined();
+  });
+
+  it('sends reasoning.effort on /responses when reasoningEffort is set (API Key provider)', async () => {
+    const client = new OpenAICompatibleClient({
+      fetchImpl: mockFetchOnce(() => Promise.resolve(jsonResponse({ output_text: 'pong' }))),
+    });
+    const res = await client.chat(
+      { ...CONFIG, apiEndpoint: 'responses', reasoningEffort: 'medium' },
+      MESSAGES,
+    );
+    expect(res.ok).toBe(true);
+    const body = JSON.parse(String(lastInit?.body)) as { reasoning?: { effort: string }; stream?: boolean };
+    expect(body.reasoning).toEqual({ effort: 'medium' });
+    expect(body.stream).toBeUndefined();
+  });
+
+  it('sends reasoning_effort on /chat/completions when reasoningEffort is set (API Key provider)', async () => {
+    const client = new OpenAICompatibleClient({
+      fetchImpl: mockFetchOnce(() => Promise.resolve(jsonResponse({ choices: [{ message: { content: 'pong' } }] }))),
+    });
+    const res = await client.chat(
+      { ...CONFIG, apiEndpoint: 'chatCompletions', reasoningEffort: 'low' },
+      MESSAGES,
+    );
+    expect(res.ok).toBe(true);
+    const body = JSON.parse(String(lastInit?.body)) as { reasoning_effort?: string; stream?: boolean };
+    expect(body.reasoning_effort).toBe('low');
+    expect(body.stream).toBeUndefined();
+  });
+
+  it('omits reasoning_effort on /chat/completions when reasoningEffort is none (API Key provider)', async () => {
+    const client = new OpenAICompatibleClient({
+      fetchImpl: mockFetchOnce(() => Promise.resolve(jsonResponse({ choices: [{ message: { content: 'pong' } }] }))),
+    });
+    const res = await client.chat(
+      { ...CONFIG, apiEndpoint: 'chatCompletions', reasoningEffort: 'none' },
+      MESSAGES,
+    );
+    expect(res.ok).toBe(true);
+    const body = JSON.parse(String(lastInit?.body)) as { reasoning_effort?: string };
+    expect(body.reasoning_effort).toBeUndefined();
   });
 
   it('keeps API Key provider on /chat/completions when apiEndpoint is chatCompletions', async () => {

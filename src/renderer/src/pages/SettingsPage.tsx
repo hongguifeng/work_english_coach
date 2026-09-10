@@ -70,7 +70,7 @@ export default function SettingsPage() {
     provider: 'apiKey' | 'githubCopilot';
     apiEndpoint: 'chatCompletions' | 'responses';
     timeoutSeconds: number;
-    reasoningEffort: 'none' | 'low' | 'medium' | 'high';
+    reasoningEffort: 'none' | 'low' | 'medium' | 'high' | 'xhigh';
     saveOriginal: boolean;
     redactEnabled: boolean;
   }>();
@@ -207,7 +207,7 @@ export default function SettingsPage() {
     baseUrl?: string;
     model?: string;
     timeoutSeconds: number;
-    reasoningEffort?: 'none' | 'low' | 'medium' | 'high';
+    reasoningEffort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh';
     apiEndpoint?: 'chatCompletions' | 'responses';
     saveOriginal: boolean;
     redactEnabled: boolean;
@@ -254,7 +254,7 @@ export default function SettingsPage() {
     const timeoutSeconds =
       (form.getFieldValue('timeoutSeconds') as number | undefined) ?? ai.timeoutSeconds;
     const reasoningEffort =
-      (form.getFieldValue('reasoningEffort') as 'none' | 'low' | 'medium' | 'high' | undefined) ??
+      (form.getFieldValue('reasoningEffort') as 'none' | 'low' | 'medium' | 'high' | 'xhigh' | undefined) ??
       ai.reasoningEffort ??
       'none';
     const apiEndpoint =
@@ -437,6 +437,7 @@ export default function SettingsPage() {
                 { value: 'low', label: '低（low）' },
                 { value: 'medium', label: '中（medium）' },
                 { value: 'high', label: '高（high）' },
+                { value: 'xhigh', label: '极高（xhigh）' },
               ]}
             />
           </Form.Item>
