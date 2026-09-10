@@ -70,4 +70,17 @@ export function registerHistoryIpc(): void {
       return errFromUnknown(e);
     }
   });
+
+  ipcMain.handle('history:delete', (_e, id: unknown): Result<boolean> => {
+    try {
+      const parsedId = idSchema.safeParse(id);
+      if (!parsedId.success) return err('validation', '历史记录 ID 无效');
+      const result = createRepositories(getDatabase()).samples.delete(parsedId.data);
+      if (!result.ok) return result;
+      return { ok: true, data: result.data };
+    } catch (e) {
+      devLog('history:delete error:', e instanceof Error ? e.message : String(e));
+      return errFromUnknown(e);
+    }
+  });
 }

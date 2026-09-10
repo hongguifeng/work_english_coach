@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
 import {
   Alert,
+  Button,
   Card,
   Descriptions,
   Empty,
   List,
+  Popconfirm,
   Space,
   Spin,
   Tag,
   Typography,
+  message,
 } from 'antd';
+import { DeleteOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { BoldText } from '../components/BoldText';
 import { CATEGORY_LABELS, SEVERITY_LABELS, SEVERITY_TAG_COLORS } from '../../../shared/constants/issues';
@@ -51,7 +55,7 @@ function recordTitle(record: HistoryRecordSummary): string {
 function HistoryDetail({ record }: { record: HistoryRecord }): JSX.Element {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card title="检查信息">
+      <Card title="检查信息" className="wec-result-card">
         <Descriptions column={{ xs: 1, sm: 2 }} size="small">
           <Descriptions.Item label="场景">{SOURCE_LABELS[record.sourceType]}</Descriptions.Item>
           <Descriptions.Item label="对象">{AUDIENCE_LABELS[record.audience]}</Descriptions.Item>
@@ -61,7 +65,7 @@ function HistoryDetail({ record }: { record: HistoryRecord }): JSX.Element {
       </Card>
 
       {record.originalChinese || record.originalEnglish ? (
-        <Card title="检查输入">
+        <Card title="检查输入" className="wec-result-card">
           <Descriptions column={1} size="small">
             {record.originalChinese ? <Descriptions.Item label="中文原意">{record.originalChinese}</Descriptions.Item> : null}
             {record.originalEnglish ? <Descriptions.Item label="英文草稿">{record.originalEnglish}</Descriptions.Item> : null}
@@ -69,7 +73,7 @@ function HistoryDetail({ record }: { record: HistoryRecord }): JSX.Element {
         </Card>
       ) : null}
 
-      <Card title="AI 修改结果">
+      <Card title="AI 修改结果" className="wec-result-card">
         <Descriptions column={1} size="small">
           <Descriptions.Item label="最小修改版">
             <Typography.Paragraph copyable={{ text: stripBoldMarks(record.minimalRevision) }} style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
@@ -85,14 +89,14 @@ function HistoryDetail({ record }: { record: HistoryRecord }): JSX.Element {
       </Card>
 
       {record.clarificationQuestions.length > 0 ? (
-        <Card title="需要确认的问题">
+        <Card title="需要确认的问题" className="wec-result-card">
           <ul style={{ margin: 0, paddingLeft: 20 }}>
             {record.clarificationQuestions.map((question) => <li key={question}>{question}</li>)}
           </ul>
         </Card>
       ) : null}
 
-      <Card title={`问题与解释（${record.issues.length}）`}>
+      <Card title={`问题与解释（${record.issues.length}）`} className="wec-result-card">
         {record.issues.length === 0 ? (
           <Empty description="没有检出明显问题" />
         ) : (
@@ -119,7 +123,7 @@ function HistoryDetail({ record }: { record: HistoryRecord }): JSX.Element {
       </Card>
 
       {record.keyLearningPoint ? (
-        <Card title="今日重点">
+        <Card title="今日重点" className="wec-result-card">
           <Space direction="vertical" style={{ width: '100%' }}>
             <Typography.Text strong>{record.keyLearningPoint.title}</Typography.Text>
             <Typography.Text>{record.keyLearningPoint.explanationZh}</Typography.Text>
@@ -128,7 +132,7 @@ function HistoryDetail({ record }: { record: HistoryRecord }): JSX.Element {
       ) : null}
 
       {record.practice ? (
-        <Card title="训练提示">
+        <Card title="训练提示" className="wec-result-card">
           <Space direction="vertical" style={{ width: '100%' }}>
             <Typography.Text>{record.practice.instructionZh}</Typography.Text>
             <Typography.Text type="secondary">
@@ -148,7 +152,30 @@ export default function HistoryPage(): JSX.Element {
   const [detail, setDetail] = useState<HistoryRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      const result = await window.desktopAPI.historyDelete(id);
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
+      if (!result.data) {
+        message.info('记录已不存在，可能已被删除');
+        const listResult = await window.desktopAPI.historyList();
+        if (listResult.ok) setRecords(listResult.data);
+        return;
+      }
+      message.success('已删除');
+      setRecords((prev) => prev.filter((r) => r.id !== id));
+      if (selectedId === id) setSelectedId(null);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -197,16 +224,37 @@ export default function HistoryPage(): JSX.Element {
                   className={record.id === selectedId ? 'wec-history-list-item-selected' : 'wec-history-list-item'}
                   onClick={() => setSelectedId(record.id)}
                 >
-                  <List.Item.Meta
-                    title={recordTitle(record)}
-                    description={(
-                      <Space size={6} wrap>
-                        <span>{SOURCE_LABELS[record.sourceType]}</span>
-                        <span>{formatDateTime(record.createdAt)}</span>
-                        <Tag>{record.issueCount} 个问题</Tag>
-                      </Space>
-                    )}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <List.Item.Meta
+                        title={recordTitle(record)}
+                        description={(
+                          <Space size={6} wrap>
+                            <span>{SOURCE_LABELS[record.sourceType]}</span>
+                            <span>{formatDateTime(record.createdAt)}</span>
+                            <Tag>{record.issueCount} 个问题</Tag>
+                          </Space>
+                        )}
+                      />
+                    </div>
+                    <Popconfirm
+                      title="删除这条检查记录及其关联的错误点？不可恢复。"
+                      okText="删除"
+                      okButtonProps={{ danger: true }}
+                      cancelText="取消"
+                      onConfirm={() => void handleDelete(record.id)}
+                    >
+                      <Button
+                        type="text"
+                        danger
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        loading={deletingId === record.id}
+                        aria-label="删除记录"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </Popconfirm>
+                  </div>
                 </List.Item>
               )}
             />

@@ -77,6 +77,7 @@ const desktopApi: DesktopApi = {
     invoke<SaveCorrectionSummary>('result:save', payload),
   historyList: () => invoke<HistoryRecordSummary[]>('history:list'),
   historyGet: (id: string) => invoke<HistoryRecord | null>('history:get', id),
+  historyDelete: (id: string) => invoke<boolean>('history:delete', id),
   // T026：表达库 CRUD（数据来自 SQLite；主进程在 IPC 边界重新 Zod 校验）。
   expressionList: () => invoke<ExpressionRecord[]>('expression:list'),
   expressionCreate: (input: CreateExpressionInput) =>

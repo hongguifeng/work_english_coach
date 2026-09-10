@@ -102,6 +102,24 @@ export class CommunicationSampleRepository {
     );
   }
 
+  /** 事务删除：样本 + 其关联 detected_issues，要么都删要么都不删。返回是否实际删到（id 不存在 → false）。
+   *  先 SELECT 确认存在再 DELETE（SqlDb 接口对 run() 返回类型较松，避免依赖其具体形状）。 */
+  delete(id: string): Result<boolean> {
+    return toResult(() =>
+      this.db.transaction((tx) => {
+        const found = tx
+          .select({ id: communicationSamples.id })
+          .from(communicationSamples)
+          .where(eq(communicationSamples.id, id))
+          .limit(1)
+          .all();
+        tx.delete(detectedIssues).where(eq(detectedIssues.sampleId, id)).run();
+        tx.delete(communicationSamples).where(eq(communicationSamples.id, id)).run();
+        return found.length > 0;
+      }),
+    );
+  }
+
   get(id: string): Result<CommunicationSampleRow | null> {
     return toResult(
       () => this.db.select().from(communicationSamples).where(eq(communicationSamples.id, id)).get() ?? null,

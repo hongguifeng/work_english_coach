@@ -384,6 +384,64 @@ describe('CommunicationSampleRepository', () => {
 		if (!isOk(got)) return;
 		expect(got.data).toBeNull();
 	});
+
+	it('delete removes the sample and its issues in one transaction', () => {
+		const saved = repos.samples.saveWithIssues(
+			baseSample,
+			[
+				{
+					category: 'grammar',
+					skillKey: 'tense-past',
+					originalText: 'is done',
+					correctedText: 'is complete',
+					explanationZh: '更正式的表达。',
+					severity: 'suggestion',
+				},
+				{
+					category: 'tone',
+					skillKey: 'tone-soft',
+					originalText: 'ok',
+					correctedText: 'sounds good',
+					explanationZh: '语气更友好。',
+					severity: 'suggestion',
+				},
+			],
+		);
+		expect(isOk(saved)).toBe(true);
+		if (!isOk(saved)) return;
+
+		const del = repos.samples.delete(saved.data.id);
+		expect(isOk(del)).toBe(true);
+		if (!isOk(del)) return;
+		expect(del.data).toBe(true);
+
+		const got = repos.samples.get(saved.data.id);
+		expect(isOk(got)).toBe(true);
+		if (!isOk(got)) return;
+		expect(got.data).toBeNull();
+
+		const issues = repos.issues.getBySampleId(saved.data.id);
+		expect(isOk(issues)).toBe(true);
+		if (isOk(issues)) {
+			expect(issues.data.length).toBe(0);
+		}
+	});
+
+	it('delete non-existent id returns false and leaves other samples intact', () => {
+		const other = repos.samples.create(baseSample);
+		expect(isOk(other)).toBe(true);
+		if (!isOk(other)) return;
+
+		const del = repos.samples.delete('nonexistent-id');
+		expect(isOk(del)).toBe(true);
+		if (!isOk(del)) return;
+		expect(del.data).toBe(false);
+
+		const got = repos.samples.get(other.data.id);
+		expect(isOk(got)).toBe(true);
+		if (!isOk(got)) return;
+		expect(got.data?.id).toBe(other.data.id);
+	});
 });
 
 /* ------------------------------------------------------------------ */

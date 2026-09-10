@@ -100,6 +100,8 @@ export interface DesktopApi {
   /** 查询历史纠错记录及单条记录详情。 */
   historyList(): Promise<Result<HistoryRecordSummary[]>>;
   historyGet(id: string): Promise<Result<HistoryRecord | null>>;
+  /** 永久删除一条历史记录及其关联错误点（不可恢复，UI 需二次确认）；返回是否实际删除。 */
+  historyDelete(id: string): Promise<Result<boolean>>;
   /** 列出全部表达（含归档），按创建时间倒序；搜索/筛选在页面侧完成（T026）。 */
   expressionList(): Promise<Result<ExpressionRecord[]>>;
   /** 手动新增表达（非法载荷 → validation）（T026）。 */
