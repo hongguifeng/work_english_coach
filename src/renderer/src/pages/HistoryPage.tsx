@@ -56,22 +56,14 @@ function HistoryDetail({ record }: { record: HistoryRecord }): JSX.Element {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Card title="检查信息" className="wec-result-card">
-        <Descriptions column={{ xs: 1, sm: 2 }} size="small">
+        <Descriptions column={{ xs: 1, sm: 3 }} size="small">
           <Descriptions.Item label="场景">{SOURCE_LABELS[record.sourceType]}</Descriptions.Item>
           <Descriptions.Item label="对象">{AUDIENCE_LABELS[record.audience]}</Descriptions.Item>
           <Descriptions.Item label="语气">{TONE_LABELS[record.tone]}</Descriptions.Item>
-          <Descriptions.Item label="检查时间">{formatDateTime(record.createdAt)}</Descriptions.Item>
+          {record.originalChinese ? <Descriptions.Item label="中文原意" span={3}>{record.originalChinese}</Descriptions.Item> : null}
+          {record.originalEnglish ? <Descriptions.Item label="英文草稿" span={3}>{record.originalEnglish}</Descriptions.Item> : null}
         </Descriptions>
       </Card>
-
-      {record.originalChinese || record.originalEnglish ? (
-        <Card title="检查输入" className="wec-result-card">
-          <Descriptions column={1} size="small">
-            {record.originalChinese ? <Descriptions.Item label="中文原意">{record.originalChinese}</Descriptions.Item> : null}
-            {record.originalEnglish ? <Descriptions.Item label="英文草稿">{record.originalEnglish}</Descriptions.Item> : null}
-          </Descriptions>
-        </Card>
-      ) : null}
 
       <Card title="AI 修改结果" className="wec-result-card">
         <Descriptions column={1} size="small">
