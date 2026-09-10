@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell } from 'electron';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { appRoot, devLog } from '../index';
+import { devLog } from '../index';
 
 /**
  * 创建主窗口（docs/02 §2.3 / T002 / T005）
@@ -136,7 +136,9 @@ export function createMainWindow(): BrowserWindow {
     }
     void win.loadURL(url);
   } else {
-    void win.loadFile(join(appRoot(), 'out/renderer/index.html'));
+    // 生产/无 dev server：基于 __dirname 解析（打包后 __dirname = resources/app.asar/out/main，
+    // 不能直接用 process.resourcesPath——那会指向 asar 外部、不存在的路径）
+    void win.loadFile(join(__dirname, '../renderer/index.html'));
   }
 
   return win;

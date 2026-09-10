@@ -1,6 +1,5 @@
 import { app, dialog, session, shell } from 'electron';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import { closeDatabase, getDatabase, getDbFile, initDatabase } from './db/database';
 import { runMigrations } from './db/migrations';
 
@@ -195,6 +194,3 @@ process.on('uncaughtException', (error) => {
 
 const isDev = process.env.ELECTRON_RENDERER_URL !== undefined;
 export { isDev, devLog };
-
-export const appRoot = (): string =>
-  app.isPackaged ? process.resourcesPath : join(app.getAppPath());
