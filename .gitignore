@@ -13,3 +13,8 @@ tmp-*.mjs
 tmp-*.cjs
 *.tmp.test.ts
 *.tmp.test.mjs
+
+# 长期保留的 E2E / 生产包验收脚本（见 docs/09-e2e-testing.md）
+!tmp-e2e-expressions.mjs
+!tmp-t039-prod.mjs
+!tmp-t040-prod.mjs
