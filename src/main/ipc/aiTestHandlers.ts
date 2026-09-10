@@ -26,7 +26,10 @@ export function registerAiTestIpc(): void {
       };
       try {
         const r = await testAiConnection(input, deps);
-        devLog(`ai:test-connection -> ${r.ok ? `ok(${r.data.latencyMs}ms)` : r.error.code}`);
+        const raw = input as { provider?: string; apiEndpoint?: string };
+        devLog(
+          `ai:test-connection endpoint=${raw.provider === 'githubCopilot' ? 'auto(copilot)' : (raw.apiEndpoint ?? 'chatCompletions')} -> ${r.ok ? `ok(${r.data.latencyMs}ms)` : r.error.code}`,
+        );
         return r;
       } catch (e) {
         devLog('ai:test-connection fail:', e instanceof Error ? e.message : String(e));
