@@ -128,6 +128,16 @@ body {
   padding: 0 16px;
 }
 
+/*
+ * 结果列的第一个子元素是 antd Space（inline-flex）：块级容器内的 inline 元素会产生
+ * 一行约 15~22px 的行框，把右侧所有卡片整体下移，导致与左侧卡片顶边不对齐。
+ * 提升为 block 级（flex）消除行框偏移。
+ * 用三 class 选择器（.ant-space.ant-space-vertical）压过 antd v5 注入的 .css-xxx.ant-space 规则。
+ */
+.wec-result-col > .ant-space.ant-space-vertical {
+  display: flex;
+}
+
 .wec-result-card > .ant-card-head > .ant-card-head-title {
   padding: 6px 0;
   font-size: 14px;

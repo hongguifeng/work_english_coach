@@ -113,7 +113,7 @@ export function AnalysisResultCard({
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card className="wec-result-card" title="版本对比">
+      <Card className="wec-result-card">
         <Descriptions column={1} size="small">
           <Descriptions.Item label="最小修改版">
             <Space direction="vertical" style={{ width: '100%' }}>
