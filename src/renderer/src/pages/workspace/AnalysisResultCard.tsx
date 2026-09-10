@@ -153,7 +153,10 @@ export function AnalysisResultCard({
                   <span>→</span>
                   <Typography.Text code>{issue.correctedText}</Typography.Text>
                 </Space>
-                <Typography.Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                <Typography.Text
+                  type="secondary"
+                  style={{ display: 'block', marginTop: 4, color: 'rgba(0, 0, 0, 0.65)' }}
+                >
                   {issue.explanationZh}
                 </Typography.Text>
               </li>

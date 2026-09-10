@@ -107,7 +107,9 @@ function HistoryDetail({ record }: { record: HistoryRecord }): JSX.Element {
                     <span>→</span>
                     <Typography.Text type="success">{issue.correctedText}</Typography.Text>
                   </Space>
-                  <Typography.Text type="secondary">{issue.explanationZh}</Typography.Text>
+                  <Typography.Text type="secondary" style={{ color: 'rgba(0, 0, 0, 0.65)' }}>
+                    {issue.explanationZh}
+                  </Typography.Text>
                 </Space>
               </List.Item>
             )}
