@@ -100,7 +100,6 @@
         "from": "drizzle",
         "to": "drizzle"
       }
-    ],
-    "publish": "never"
+    ]
   }
 }
