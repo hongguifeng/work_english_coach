@@ -18,3 +18,6 @@ tmp-*.cjs
 !tmp-e2e-expressions.mjs
 !tmp-t039-prod.mjs
 !tmp-t040-prod.mjs
+
+# 文档截图（由 scripts/capture-screenshots.mjs 生成）
+docs/screenshots/

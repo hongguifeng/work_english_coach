@@ -1,0 +1,64 @@
+name: Release
+
+# 打 tag（v*.*.*）触发：构建 Windows NSIS 安装程序 + win-unpacked 免安装包，
+# 上传到 GitHub Releases。版本号取自 tag（仓库内 package.json 保持 dev 值不变）。
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build Windows (NSIS) + Release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set version from tag
+        shell: pwsh
+        run: |
+          $ver = '${{ github.ref_name }}' -replace '^v', ''
+          npm version $ver --no-git-tag-version --allow-same-version
+          Write-Host ('build version => ' + (node -p "require('./package.json').version"))
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rebuild native deps for Electron ABI (better-sqlite3 / keytar)
+        run: npm run rebuild
+
+      - name: Build (electron-vite)
+        run: npm run build
+
+      - name: Package (NSIS installer + win-unpacked dir)
+        run: npx electron-builder --win --x64
+
+      - name: Zip win-unpacked (portable)
+        shell: pwsh
+        run: Compress-Archive -Path release\win-unpacked -DestinationPath release\win-unpacked.zip
+
+      - name: Upload installer to action artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wec-nsis-installer
+          path: release/*.exe
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ver = '${{ github.ref_name }}'
+          $exe = (Get-ChildItem -Path release -Filter '*.exe' | Select-Object -First 1).FullName
+          if (-not $exe) { throw 'NSIS installer not found in release/' }
+          Write-Host ("release assets: " + $exe + ", release\win-unpacked.zip")
+          gh release create $ver --title "WorkEnglish Coach $ver" --notes "Windows x64 - NSIS installer and win-unpacked portable zip." $exe
+          gh release upload $ver release\win-unpacked.zip

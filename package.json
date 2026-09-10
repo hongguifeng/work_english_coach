@@ -21,7 +21,8 @@
     "package:win:dir": "electron-vite build && electron-builder --win --dir",
     "icon:generate": "node scripts/generate-icon.mjs",
     "rebuild": "electron-builder install-app-deps",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "screenshots": "node scripts/capture-screenshots.mjs"
   },
   "dependencies": {
     "better-sqlite3": "12.11.1",
