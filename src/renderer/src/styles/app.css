@@ -138,8 +138,9 @@ body {
   display: flex;
 }
 
-.wec-result-card > .ant-card-head > .ant-card-head-title {
-  padding: 6px 0;
+/* 标题在 .ant-card-head-wrapper 里（非 head 直接子元素）；上方留 2px、下方留 6px，压缩标题上方空白 */
+.wec-result-card > .ant-card-head .ant-card-head-title {
+  padding: 2px 0 6px;
   font-size: 14px;
   line-height: 20px;
 }
