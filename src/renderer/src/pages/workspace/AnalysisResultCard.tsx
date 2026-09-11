@@ -114,10 +114,10 @@ export function AnalysisResultCard({
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       {result.translationZh && (
-        <Card className="wec-result-card" title="草稿实际表达的意思（AI 回译）">
+        <Card className="wec-result-card" title="你想表达的意思（AI 推断）">
           <Typography.Text>{result.translationZh}</Typography.Text>
           <Typography.Text type="secondary" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
-            对照你的中文原意：若这里的意思跑偏了，说明草稿把意思写错了，AI 应将其标为“意思不明确”。
+            AI 已按你草稿推断出最可能想表达的意思（语法和缺漏已修复，未补充草稿里没有的信息）。对照你的中文原意：若两者不一致，说明草稿没有把本意表达完整或准确，AI 应将其标为“意思不明确”。
           </Typography.Text>
         </Card>
       )}
