@@ -25,10 +25,12 @@ export const SHORTCUT_CONFIG_KEY = 'globalShortcut';
 
 /** 全局快捷键注册后端（主进程注入 electron.globalShortcut 的绑定实现）。 */
 export interface ShortcutBackend {
-  /** 注册快捷键；冲突（已被占用）时返回 false，不抛异常。 */
+  /** 注册快捷键；冲突（已被占用）或格式无效时返回 false，不抛异常。 */
   register(accelerator: string, callback: () => void): boolean;
   /** 解注册全部快捷键。 */
   unregisterAll(): void;
+  /** 可选：最近一次注册失败的具体原因（如 accelerator 格式无效）；无则返回 null。 */
+  describeLastError?(): string | null;
 }
 
 /** 当前内存态：最近一次 get/save/apply 后的设置与注册结果。 */
@@ -90,13 +92,18 @@ function apply(settings: GlobalShortcutSettings): void {
   const registered = boundBackend.register(settings.accelerator, () => {
     boundActivator?.();
   });
-  state = registered
-    ? { settings: { ...settings }, active: true, error: null }
-    : {
-        settings: { ...settings },
-        active: false,
-        error: `快捷键「${settings.accelerator}」注册失败（可能与系统或其他应用的快捷键冲突，请在设置中更换）`,
-      };
+  if (registered) {
+    state = { settings: { ...settings }, active: true, error: null };
+    return;
+  }
+  const reason =
+    boundBackend.describeLastError?.() ??
+    '可能与系统或其他应用的快捷键冲突，或格式无效，请在设置中更换';
+  state = {
+    settings: { ...settings },
+    active: false,
+    error: `快捷键「${settings.accelerator}」注册失败：${reason}`,
+  };
 }
 
 /**

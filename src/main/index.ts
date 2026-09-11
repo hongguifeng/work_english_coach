@@ -173,9 +173,28 @@ if (!gotTheLock) {
 
     // T038：全局快捷键——注入 electron 后端与窗口激活回调，启动时重新注册已持久化的快捷键。
     // 注册失败（如与其他应用冲突）只记录状态供设置页提示，不影响应用运行。
+    // Electron 对无效 accelerator 抛异常、冲突返回 false；统一为布尔 + 失败原因（describeLastError）
+    let lastShortcutError: string | null = null;
     bindShortcutBackend({
-      register: (accelerator, cb) => globalShortcut.register(accelerator, cb),
-      unregisterAll: () => globalShortcut.unregisterAll(),
+      register: (accelerator, cb) => {
+        lastShortcutError = null;
+        try {
+          const registered = globalShortcut.register(accelerator, cb);
+          if (!registered) {
+            lastShortcutError = '与已占用的快捷键冲突（系统或其他应用），请更换组合';
+          }
+          return registered;
+        } catch {
+          lastShortcutError =
+            '格式无效（正确示例：Ctrl+Shift+Space、Ctrl+Alt+E、CommandOrControl+Shift+K）';
+          return false;
+        }
+      },
+      unregisterAll: () => {
+        globalShortcut.unregisterAll();
+        lastShortcutError = null;
+      },
+      describeLastError: () => lastShortcutError,
     });
     bindWindowActivator(activateMainWindow);
     registerShortcutIpc();
@@ -196,12 +215,20 @@ if (!gotTheLock) {
   });
 }
 
-// T038：按下全局快捷键时的窗口激活（最小化先恢复、隐藏先显示，然后聚焦）
+// T038：按下全局快捷键时的窗口激活（最小化先恢复、隐藏先显示，然后聚焦），
+// 并跳到「工作区」页面（HashRouter 的 '#/' 即工作区路由；hash 变更不重载页面，不丢页面内状态）。
 function activateMainWindow(): void {
   if (!mainWindow) return;
   if (mainWindow.isMinimized()) mainWindow.restore();
   if (!mainWindow.isVisible()) mainWindow.show();
   mainWindow.focus();
+  void mainWindow.webContents
+    .executeJavaScript(
+      "if (window.location.hash !== '#/' && window.location.hash !== '') window.location.hash = '#/';",
+    )
+    .catch(() => {
+      /* 页面可能尚未就绪（如崩溃恢复中）——忽略 */
+    });
 }
 
 app.on('window-all-closed', () => {

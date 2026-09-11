@@ -25,18 +25,32 @@ import {
 import { DEFAULT_GLOBAL_SHORTCUT } from '../src/shared/types/settings';
 import type { SettingsRepository } from '../src/main/db/repositories/settings';
 
-/** 记录 register/unregisterAll 调用的假后端；failRegister 模拟冲突。 */
+/** 记录 register/unregisterAll 调用的假后端；failConflict / failInvalid 模拟注册失败。 */
 class FakeBackend implements ShortcutBackend {
   registered: string[] = [];
   unregisterAllCount = 0;
-  failRegister = false;
+  failConflict = false;
+  failInvalid = false;
+  lastError: string | null = null;
   lastCallback: (() => void) | null = null;
 
   register(accelerator: string, callback: () => void): boolean {
-    if (this.failRegister) return false;
+    if (this.failConflict) {
+      this.lastError = null; // 真实冲突：后端无具体原因 → 服务给默认冲突提示
+      return false;
+    }
+    if (this.failInvalid) {
+      this.lastError = '格式无效（假后端模拟）';
+      return false;
+    }
+    this.lastError = null;
     this.registered.push(accelerator);
     this.lastCallback = callback;
     return true;
+  }
+
+  describeLastError(): string | null {
+    return this.lastError;
   }
 
   unregisterAll(): void {
@@ -143,12 +157,20 @@ describe('applyPersistedShortcut（应用启动）', () => {
   });
 
   it('注册冲突（后端返回 false）→ active=false + 冲突提示，不抛异常', () => {
-    backend.failRegister = true;
+    backend.failConflict = true;
     const r = applyPersistedShortcut(repoOf(repo));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.data.active).toBe(false);
     expect(r.data.error).toContain('冲突');
+  });
+
+  it('后端给出具体失败原因（如格式无效）→ 提示中包含该原因', () => {
+    backend.failInvalid = true;
+    const r = applyPersistedShortcut(repoOf(repo));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data.error).toContain('格式无效（假后端模拟）');
   });
 });
 
@@ -199,7 +221,7 @@ describe('shortcutSave', () => {
   });
 
   it('注册冲突 → 配置已持久化，但返回 active=false + 原因（不抛异常）', () => {
-    backend.failRegister = true;
+    backend.failConflict = true;
     const r = shortcutSave(repoOf(repo), {
       enabled: true,
       accelerator: 'CommandOrControl+Shift+U',

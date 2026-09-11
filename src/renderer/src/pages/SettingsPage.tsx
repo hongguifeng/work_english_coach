@@ -23,7 +23,7 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import { ThunderboltOutlined } from '@ant-design/icons';
+import { SaveOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import {
   aiSettingsSchema,
   type CopilotModel,
@@ -61,20 +61,6 @@ function testErrorMessage(code: string, message: string | null): string {
 /** API Key 最大长度（与主进程 secretService 保持一致）。 */
 const MAX_API_KEY_LENGTH = 512;
 
-/** T038：可选的全局快捷键预设（Electron accelerator；Windows 上 CommandOrControl = Ctrl）。 */
-const SHORTCUT_PRESETS: Array<{ value: string; label: string }> = [
-  { value: 'CommandOrControl+Shift+Space', label: 'Ctrl + Shift + Space（默认）' },
-  { value: 'CommandOrControl+Alt+Shift+E', label: 'Ctrl + Alt + Shift + E' },
-  { value: 'CommandOrControl+Shift+I', label: 'Ctrl + Shift + I' },
-  { value: 'CommandOrControl+Shift+U', label: 'Ctrl + Shift + U' },
-];
-
-/** 展示快捷键（预设外的值原样展示）。 */
-function shortcutLabel(accelerator: string): string {
-  const preset = SHORTCUT_PRESETS.find((p) => p.value === accelerator);
-  if (preset) return preset.label.replace('（默认）', '');
-  return accelerator;
-}
 
 export default function SettingsPage() {
   const ai = useSettingsStore((s) => s.ai);
@@ -109,9 +95,11 @@ export default function SettingsPage() {
   const [copilotModels, setCopilotModels] = useState<CopilotModel[]>([]);
   const [loadingCopilotModels, setLoadingCopilotModels] = useState(false);
   const [copilotModelsError, setCopilotModelsError] = useState<string | null>(null);
-  // T038：全局快捷键（改即保存，不用等底部保存按钮）
+  // T038：全局快捷键（改即保存，不用等底部保存按钮；快捷键支持自定义输入）
   const [sc, setSc] = useState<GlobalShortcutState | null>(null);
   const [scSaving, setScSaving] = useState(false);
+  const [accel, setAccel] = useState('');
+  const [accelTouched, setAccelTouched] = useState(false);
   const selectedProvider = Form.useWatch('provider', form) ?? ai.provider ?? 'apiKey';
 
   // 挂载时查询是否已配置（只返回布尔，不返回 Key）
@@ -169,19 +157,30 @@ export default function SettingsPage() {
     let active = true;
     window.desktopAPI.shortcutGet().then((r) => {
       if (!active) return;
-      if (r.ok) setSc(r.data);
+      if (r.ok) {
+        setSc(r.data);
+        // 初始回填输入框（用户改过之后不再覆盖）
+        setAccel((prev) => (accelTouched ? prev : r.data.settings.accelerator));
+      }
     });
     return () => {
       active = false;
     };
+    // 故意只跑一次（挂载时）：依赖加速输入框的“一次性回填”语义，不随 accelTouched 重跑
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // T038：快捷键改即保存（主进程立即重新注册，返回最新状态/失败原因）
   const handleShortcutChange = async (patch: Partial<GlobalShortcutSettings>) => {
     if (!sc) return;
+    const accelerator = (patch.accelerator ?? sc.settings.accelerator).trim();
+    if (accelerator.length === 0) {
+      message.error('请输入快捷键');
+      return;
+    }
     const next: GlobalShortcutSettings = {
       enabled: patch.enabled ?? sc.settings.enabled,
-      accelerator: patch.accelerator ?? sc.settings.accelerator,
+      accelerator,
     };
     setScSaving(true);
     const r = await window.desktopAPI.shortcutSave(next);
@@ -553,22 +552,29 @@ export default function SettingsPage() {
           <Divider />
           <Typography.Title level={5}>全局快捷键</Typography.Title>
           <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
-            应用运行期间，在任意位置按下快捷键即可显示并聚焦主窗口。修改后立即生效。
+            应用运行期间，在任意位置按下快捷键即可唤出主窗口并跳到「工作区」页面。
+            快捷键支持自定义输入（Electron accelerator 格式，如 Ctrl+Shift+Space、Ctrl+Alt+E），保存后立即生效。
           </Typography.Text>
-          <Space size="middle" wrap>
+          <Space size="middle" wrap align="center">
             <Space>
               <Typography.Text>快捷键：</Typography.Text>
-              <Select
-                style={{ width: 230 }}
-                value={sc ? (sc.settings.accelerator || undefined) : undefined}
-                loading={scSaving}
-                options={
-                  sc && !SHORTCUT_PRESETS.some((p) => p.value === sc.settings.accelerator)
-                    ? [{ value: sc.settings.accelerator, label: sc.settings.accelerator }, ...SHORTCUT_PRESETS]
-                    : SHORTCUT_PRESETS
-                }
-                onChange={(v: string) => void handleShortcutChange({ accelerator: v })}
+              <Input
+                style={{ width: 240 }}
+                placeholder="例如：Ctrl+Shift+Space"
+                value={accel}
+                onChange={(e) => {
+                  setAccel(e.target.value);
+                  setAccelTouched(true);
+                }}
               />
+              <Button
+                type="primary"
+                icon={<SaveOutlined />}
+                loading={scSaving}
+                onClick={() => void handleShortcutChange({ accelerator: accel })}
+              >
+                保存
+              </Button>
             </Space>
             <Space>
               <Typography.Text>启用：</Typography.Text>
@@ -582,7 +588,7 @@ export default function SettingsPage() {
           <div style={{ marginTop: 8 }}>
             {sc ? (
               sc.active ? (
-                <Tag color="success">已注册：{shortcutLabel(sc.settings.accelerator)}（现在即可使用）</Tag>
+                <Tag color="success">已注册：{sc.settings.accelerator}（现在即可使用）</Tag>
               ) : sc.settings.enabled ? (
                 <Tag color="error">{sc.error ?? '注册失败'}</Tag>
               ) : (
