@@ -23,7 +23,8 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import { SaveOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { ThunderboltOutlined } from '@ant-design/icons';
+import { ShortcutCaptureBox } from '../components/ShortcutCaptureBox';
 import {
   aiSettingsSchema,
   type CopilotModel,
@@ -95,11 +96,9 @@ export default function SettingsPage() {
   const [copilotModels, setCopilotModels] = useState<CopilotModel[]>([]);
   const [loadingCopilotModels, setLoadingCopilotModels] = useState(false);
   const [copilotModelsError, setCopilotModelsError] = useState<string | null>(null);
-  // T038：全局快捷键（改即保存，不用等底部保存按钮；快捷键支持自定义输入）
+  // T038：全局快捷键（改即保存；快捷键用「按键录制」方式修改，见 ShortcutCaptureBox）
   const [sc, setSc] = useState<GlobalShortcutState | null>(null);
   const [scSaving, setScSaving] = useState(false);
-  const [accel, setAccel] = useState('');
-  const [accelTouched, setAccelTouched] = useState(false);
   const selectedProvider = Form.useWatch('provider', form) ?? ai.provider ?? 'apiKey';
 
   // 挂载时查询是否已配置（只返回布尔，不返回 Key）
@@ -159,15 +158,11 @@ export default function SettingsPage() {
       if (!active) return;
       if (r.ok) {
         setSc(r.data);
-        // 初始回填输入框（用户改过之后不再覆盖）
-        setAccel((prev) => (accelTouched ? prev : r.data.settings.accelerator));
       }
     });
     return () => {
       active = false;
     };
-    // 故意只跑一次（挂载时）：依赖加速输入框的“一次性回填”语义，不随 accelTouched 重跑
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // T038：快捷键改即保存（主进程立即重新注册，返回最新状态/失败原因）
@@ -553,28 +548,17 @@ export default function SettingsPage() {
           <Typography.Title level={5}>全局快捷键</Typography.Title>
           <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
             应用运行期间，在任意位置按下快捷键即可唤出主窗口并跳到「工作区」页面。
-            快捷键支持自定义输入（Electron accelerator 格式，如 Ctrl+Shift+Space、Ctrl+Alt+E），保存后立即生效。
+            修改方式：点击「重新录制」后直接按下按键组合（需含 Ctrl/Alt/Win 修饰键 + 一个主键，Esc 取消），
+            松开后立即保存并生效（内部转为 Electron accelerator 格式，如 CommandOrControl+Shift+Space）。
           </Typography.Text>
           <Space size="middle" wrap align="center">
             <Space>
               <Typography.Text>快捷键：</Typography.Text>
-              <Input
-                style={{ width: 240 }}
-                placeholder="例如：Ctrl+Shift+Space"
-                value={accel}
-                onChange={(e) => {
-                  setAccel(e.target.value);
-                  setAccelTouched(true);
-                }}
+              <ShortcutCaptureBox
+                value={sc ? sc.settings.accelerator : ''}
+                saving={scSaving}
+                onCapture={(accelerator) => void handleShortcutChange({ accelerator })}
               />
-              <Button
-                type="primary"
-                icon={<SaveOutlined />}
-                loading={scSaving}
-                onClick={() => void handleShortcutChange({ accelerator: accel })}
-              >
-                保存
-              </Button>
             </Space>
             <Space>
               <Typography.Text>启用：</Typography.Text>
