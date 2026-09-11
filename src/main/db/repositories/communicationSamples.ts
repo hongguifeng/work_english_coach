@@ -15,6 +15,8 @@ export interface CreateSampleInput {
   /** 用户选择不保存原文时为 null */
   originalChinese: string | null;
   originalEnglish: string | null;
+  /** AI 推断的用户想表达的意思（可空） */
+  translationZh?: string | null;
   minimalRevision: string;
   naturalRevision: string;
   shouldClarify: boolean;
@@ -48,6 +50,7 @@ export class CommunicationSampleRepository {
       tone: input.tone,
       originalChinese: input.originalChinese,
       originalEnglish: input.originalEnglish,
+      translationZh: input.translationZh ?? null,
       minimalRevision: input.minimalRevision,
       naturalRevision: input.naturalRevision,
       shouldClarify: input.shouldClarify,

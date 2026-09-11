@@ -95,6 +95,7 @@ export function saveCorrectionResult(
             // 隐私：不保存原文 → 两个原文字段均为 NULL（知识点/表达不受影响）
             originalChinese: saveOriginal ? (input.originalChinese ?? null) : null,
             originalEnglish: saveOriginal ? input.originalEnglish : null,
+            translationZh: result.translationZh ?? null,
             minimalRevision: result.minimalRevision,
             naturalRevision: result.naturalRevision,
             shouldClarify: result.shouldClarify,

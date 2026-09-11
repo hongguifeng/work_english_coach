@@ -1,0 +1,1 @@
+ALTER TABLE `communication_samples` ADD `translationZh` text;

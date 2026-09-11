@@ -47,6 +47,8 @@ export const communicationSamples = sqliteTable('communication_samples', {
   /** 用户选择不保存原文时为 NULL */
   originalChinese: text('originalChinese'),
   originalEnglish: text('originalEnglish'),
+  /** AI 推断的用户想表达的意思（基于草稿回译推断）；旧记录为 NULL */
+  translationZh: text('translationZh'),
   minimalRevision: text('minimalRevision').notNull(),
   naturalRevision: text('naturalRevision').notNull(),
   shouldClarify: integer('shouldClarify', { mode: 'boolean' }).notNull().default(false),

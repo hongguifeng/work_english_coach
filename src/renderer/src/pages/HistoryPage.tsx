@@ -65,6 +65,15 @@ function HistoryDetail({ record }: { record: HistoryRecord }): JSX.Element {
         </Descriptions>
       </Card>
 
+      {record.translationZh ? (
+        <Card title="你想表达的意思（AI 推断）" className="wec-result-card">
+          <Typography.Text>{record.translationZh}</Typography.Text>
+          <Typography.Text type="secondary" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
+            AI 按你的草稿推断出最可能想表达的意思（语法与缺漏已修复，未补充草稿没有的信息）。若与上方中文原意不一致，说明草稿没有把本意表达完整或准确。
+          </Typography.Text>
+        </Card>
+      ) : null}
+
       <Card title="AI 修改结果" className="wec-result-card">
         <Descriptions column={1} size="small">
           <Descriptions.Item label="最小修改版">

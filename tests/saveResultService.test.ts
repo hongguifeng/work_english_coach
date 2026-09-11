@@ -130,6 +130,40 @@ describe('saveCorrectionResult (T025)', () => {
     }
   });
 
+  it('把 AI 推断的「你想表达的意思」(translationZh) 持久化到样本；未提供时存 NULL', () => {
+    const { db, client, close } = createTestDb();
+    try {
+      const repos = createRepositories(db);
+      const withZh = saveCorrectionResult(repos, {
+        input: INPUT,
+        result: makeResult({ translationZh: '告诉供应商：报告会在周五之前提交。' }),
+        saveOriginal: true,
+        saveExpression: false,
+      });
+      expect(withZh.ok).toBe(true);
+      if (!withZh.ok) return;
+      const r1 = client
+        .prepare('SELECT translationZh FROM communication_samples WHERE id = ?')
+        .get(withZh.data.sampleId) as Record<string, unknown> | undefined;
+      expect(r1?.translationZh).toBe('告诉供应商：报告会在周五之前提交。');
+
+      const withoutZh = saveCorrectionResult(repos, {
+        input: INPUT,
+        result: makeResult(),
+        saveOriginal: true,
+        saveExpression: false,
+      });
+      expect(withoutZh.ok).toBe(true);
+      if (!withoutZh.ok) return;
+      const r2 = client
+        .prepare('SELECT translationZh FROM communication_samples WHERE id = ?')
+        .get(withoutZh.data.sampleId) as Record<string, unknown> | undefined;
+      expect(r2?.translationZh).toBeNull();
+    } finally {
+      close();
+    }
+  });
+
   it('saveOriginal=false：原文 NULL，但知识点/错误/表达仍可复习（chineseMeaning 为空串）', () => {
     const { db, client, close } = createTestDb();
     try {

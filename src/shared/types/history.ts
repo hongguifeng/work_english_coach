@@ -26,6 +26,8 @@ export interface HistoryIssue {
 }
 
 export interface HistoryRecord extends HistoryRecordSummary {
+  /** AI 推断的用户想表达的意思（新记录有值；旧记录为 null） */
+  translationZh: string | null;
   originalChinese: string | null;
   clarificationQuestions: string[];
   issues: HistoryIssue[];
