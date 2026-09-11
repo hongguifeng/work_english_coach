@@ -1,7 +1,14 @@
-import { app, dialog, session, shell } from 'electron';
+import { app, dialog, globalShortcut, session, shell } from 'electron';
 import { existsSync } from 'node:fs';
 import { closeDatabase, getDatabase, getDbFile, initDatabase } from './db/database';
 import { runMigrations } from './db/migrations';
+import { SettingsRepository } from './db/repositories/settings';
+import {
+  applyPersistedShortcut,
+  bindShortcutBackend,
+  bindWindowActivator,
+  teardownShortcut,
+} from './services/shortcutService';
 
 import { createMainWindow } from './windows/createMainWindow';
 import { registerAiAnalysisIpc } from './ipc/aiAnalysisHandlers';
@@ -19,6 +26,7 @@ import { registerHistoryIpc } from './ipc/historyHandlers';
 import { registerStatsIpc } from './ipc/statsHandlers';
 import { registerSecretIpc } from './ipc/secretHandlers';
 import { registerRecordingIpc } from './ipc/recordingHandlers';
+import { registerShortcutIpc } from './ipc/shortcutHandlers';
 import { cleanupStaleRecordings } from './services/recordingStore';
 import { devLog } from './log';
 
@@ -162,12 +170,48 @@ if (!gotTheLock) {
     registerSecretIpc();
     registerRecordingIpc();
     mainWindow = createMainWindow();
+
+    // T038：全局快捷键——注入 electron 后端与窗口激活回调，启动时重新注册已持久化的快捷键。
+    // 注册失败（如与其他应用冲突）只记录状态供设置页提示，不影响应用运行。
+    bindShortcutBackend({
+      register: (accelerator, cb) => globalShortcut.register(accelerator, cb),
+      unregisterAll: () => globalShortcut.unregisterAll(),
+    });
+    bindWindowActivator(activateMainWindow);
+    registerShortcutIpc();
+    try {
+      const sr = applyPersistedShortcut(new SettingsRepository(getDatabase()));
+      if (sr.ok) {
+        if (sr.data.active) {
+          devLog(`global shortcut registered: ${sr.data.settings.accelerator}`);
+        } else if (sr.data.error) {
+          devLog(`global shortcut inactive: ${sr.data.error}`);
+        }
+      } else {
+        devLog('global shortcut init fail:', sr.error.message);
+      }
+    } catch (e) {
+      devLog('global shortcut init fail:', e instanceof Error ? e.message : String(e));
+    }
   });
+}
+
+// T038：按下全局快捷键时的窗口激活（最小化先恢复、隐藏先显示，然后聚焦）
+function activateMainWindow(): void {
+  if (!mainWindow) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) mainWindow.show();
+  mainWindow.focus();
 }
 
 app.on('window-all-closed', () => {
   closeDatabase();
   app.quit();
+});
+
+// T038：退出时解注册全部全局快捷键，避免残留
+app.on('will-quit', () => {
+  teardownShortcut();
 });
 
 // 外部链接一律交给系统浏览器

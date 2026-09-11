@@ -3,6 +3,8 @@ import type {
   AiConnectionTestInput,
   AiConnectionTestResult,
   AiSettings,
+  GlobalShortcutSettings,
+  GlobalShortcutState,
   CopilotModel,
   CopilotLoginInfo,
 } from './settings';
@@ -63,6 +65,10 @@ export interface DesktopApi {
   aiConfigGet(): Promise<Result<AiSettings>>;
   /** 校验并持久化 AI 非密钥配置（非法输入 → validation 错误；绝不含 API Key）（T019）。 */
   aiConfigSave(settings: AiSettings): Promise<Result<AiSettings>>;
+  /** 读取全局快捷键设置 + 当前注册状态（失败原因，如有）（T038）。 */
+  shortcutGet(): Promise<Result<GlobalShortcutState>>;
+  /** 校验并持久化全局快捷键设置并重新注册（非法输入 → validation 错误）（T038）。 */
+  shortcutSave(settings: GlobalShortcutSettings): Promise<Result<GlobalShortcutState>>;
   /** GitHub Copilot OAuth Device Flow：开始登录并返回验证码信息。 */
   copilotBeginLogin(): Promise<Result<CopilotLoginInfo>>;
   /** 完成 GitHub Copilot OAuth Device Flow 并将 token 保存到系统凭据存储。 */

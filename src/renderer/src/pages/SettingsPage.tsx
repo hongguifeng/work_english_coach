@@ -1,4 +1,4 @@
-// 设置页（T011 骨架 / T017 数据管理 / T018 API Key 凭据存储 / T019 AI 配置持久化 / T042 测试连接）
+// 设置页（T011 骨架 / T017 数据管理 / T018 API Key 凭据存储 / T019 AI 配置持久化 / T042 测试连接 / T038 全局快捷键）
 // - AI 服务非密钥设置：Zod 校验后经 IPC 持久化到 SQLite settings 表（T019）；
 //   挂载时从主进程回填，保存按钮带 loading。
 // - API Key：独立卡片，走系统凭据存储（keytar/DPAPI，T018）。
@@ -28,6 +28,8 @@ import {
   aiSettingsSchema,
   type CopilotModel,
   type AiSettings,
+  type GlobalShortcutSettings,
+  type GlobalShortcutState,
 } from '../../../shared/types/settings';
 import { useSettingsStore } from './settings/SettingsStore';
 
@@ -58,6 +60,21 @@ function testErrorMessage(code: string, message: string | null): string {
 
 /** API Key 最大长度（与主进程 secretService 保持一致）。 */
 const MAX_API_KEY_LENGTH = 512;
+
+/** T038：可选的全局快捷键预设（Electron accelerator；Windows 上 CommandOrControl = Ctrl）。 */
+const SHORTCUT_PRESETS: Array<{ value: string; label: string }> = [
+  { value: 'CommandOrControl+Shift+Space', label: 'Ctrl + Shift + Space（默认）' },
+  { value: 'CommandOrControl+Alt+Shift+E', label: 'Ctrl + Alt + Shift + E' },
+  { value: 'CommandOrControl+Shift+I', label: 'Ctrl + Shift + I' },
+  { value: 'CommandOrControl+Shift+U', label: 'Ctrl + Shift + U' },
+];
+
+/** 展示快捷键（预设外的值原样展示）。 */
+function shortcutLabel(accelerator: string): string {
+  const preset = SHORTCUT_PRESETS.find((p) => p.value === accelerator);
+  if (preset) return preset.label.replace('（默认）', '');
+  return accelerator;
+}
 
 export default function SettingsPage() {
   const ai = useSettingsStore((s) => s.ai);
@@ -92,6 +109,9 @@ export default function SettingsPage() {
   const [copilotModels, setCopilotModels] = useState<CopilotModel[]>([]);
   const [loadingCopilotModels, setLoadingCopilotModels] = useState(false);
   const [copilotModelsError, setCopilotModelsError] = useState<string | null>(null);
+  // T038：全局快捷键（改即保存，不用等底部保存按钮）
+  const [sc, setSc] = useState<GlobalShortcutState | null>(null);
+  const [scSaving, setScSaving] = useState(false);
   const selectedProvider = Form.useWatch('provider', form) ?? ai.provider ?? 'apiKey';
 
   // 挂载时查询是否已配置（只返回布尔，不返回 Key）
@@ -144,6 +164,34 @@ export default function SettingsPage() {
     };
   }, []);
 
+  // T038：挂载时读取全局快捷键设置与当前注册状态
+  useEffect(() => {
+    let active = true;
+    window.desktopAPI.shortcutGet().then((r) => {
+      if (!active) return;
+      if (r.ok) setSc(r.data);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // T038：快捷键改即保存（主进程立即重新注册，返回最新状态/失败原因）
+  const handleShortcutChange = async (patch: Partial<GlobalShortcutSettings>) => {
+    if (!sc) return;
+    const next: GlobalShortcutSettings = {
+      enabled: patch.enabled ?? sc.settings.enabled,
+      accelerator: patch.accelerator ?? sc.settings.accelerator,
+    };
+    setScSaving(true);
+    const r = await window.desktopAPI.shortcutSave(next);
+    setScSaving(false);
+    if (r.ok) {
+      setSc(r.data);
+    } else {
+      message.error(r.error.message);
+    }
+  };
   // T019：挂载时从 SQLite（经主进程）回填已持久化的 AI 配置（缺失/损坏 → 主进程给默认值）。
   useEffect(() => {
     let active = true;
@@ -501,6 +549,47 @@ export default function SettingsPage() {
           >
             <Switch />
           </Form.Item>
+
+          <Divider />
+          <Typography.Title level={5}>全局快捷键</Typography.Title>
+          <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
+            应用运行期间，在任意位置按下快捷键即可显示并聚焦主窗口。修改后立即生效。
+          </Typography.Text>
+          <Space size="middle" wrap>
+            <Space>
+              <Typography.Text>快捷键：</Typography.Text>
+              <Select
+                style={{ width: 230 }}
+                value={sc ? (sc.settings.accelerator || undefined) : undefined}
+                loading={scSaving}
+                options={
+                  sc && !SHORTCUT_PRESETS.some((p) => p.value === sc.settings.accelerator)
+                    ? [{ value: sc.settings.accelerator, label: sc.settings.accelerator }, ...SHORTCUT_PRESETS]
+                    : SHORTCUT_PRESETS
+                }
+                onChange={(v: string) => void handleShortcutChange({ accelerator: v })}
+              />
+            </Space>
+            <Space>
+              <Typography.Text>启用：</Typography.Text>
+              <Switch
+                checked={sc ? sc.settings.enabled : true}
+                loading={scSaving}
+                onChange={(v: boolean) => void handleShortcutChange({ enabled: v })}
+              />
+            </Space>
+          </Space>
+          <div style={{ marginTop: 8 }}>
+            {sc ? (
+              sc.active ? (
+                <Tag color="success">已注册：{shortcutLabel(sc.settings.accelerator)}（现在即可使用）</Tag>
+              ) : sc.settings.enabled ? (
+                <Tag color="error">{sc.error ?? '注册失败'}</Tag>
+              ) : (
+                <Tag>已禁用</Tag>
+              )
+            ) : null}
+          </div>
 
           <Divider />
           <Typography.Title level={5}>数据管理</Typography.Title>

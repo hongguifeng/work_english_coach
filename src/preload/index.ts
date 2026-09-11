@@ -10,6 +10,8 @@ import type {
   AiSettings,
   CopilotLoginInfo,
   CopilotModel,
+  GlobalShortcutSettings,
+  GlobalShortcutState,
 } from '../shared/types/settings';
 import type { AnalyzeDraftInput, AnalyzeDraftResult } from '../shared/types/ai';
 import type { SaveCorrectionPayload, SaveCorrectionSummary } from '../shared/types/saveResult';
@@ -58,6 +60,10 @@ const desktopApi: DesktopApi = {
   // T019：AI 非密钥配置持久化到 SQLite settings 表（绝不含 API Key）。
   aiConfigGet: () => invoke<AiSettings>('aiConfig:get'),
   aiConfigSave: (settings: AiSettings) => invoke<AiSettings>('aiConfig:save', settings),
+  // T038 全局快捷键
+  shortcutGet: () => invoke<GlobalShortcutState>('shortcut:get'),
+  shortcutSave: (settings: GlobalShortcutSettings) =>
+    invoke<GlobalShortcutState>('shortcut:save', settings),
   copilotBeginLogin: () => invoke<CopilotLoginInfo>('copilot:begin-login'),
   copilotCompleteLogin: () => invoke<void>('copilot:complete-login'),
   copilotLogout: () => invoke<void>('copilot:logout'),

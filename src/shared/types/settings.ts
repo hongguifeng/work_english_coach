@@ -73,6 +73,29 @@ export interface CopilotModel {
   name: string;
 }
 
+/** T038 全局快捷键配置：启用开关 + Electron accelerator（如 'CommandOrControl+Shift+Space'）。 */
+export const globalShortcutSettingsSchema = z.object({
+  /** 是否启用全局快捷键 */
+  enabled: z.boolean(),
+  /** Electron accelerator 字符串（空串 = 未设置，视为非法） */
+  accelerator: z.string().min(1, '快捷键不能为空').max(100, '快捷键过长'),
+});
+export type GlobalShortcutSettings = z.infer<typeof globalShortcutSettingsSchema>;
+
+export const DEFAULT_GLOBAL_SHORTCUT: GlobalShortcutSettings = {
+  enabled: true,
+  accelerator: 'CommandOrControl+Shift+Space',
+};
+
+/** T038 IPC 返回的全局快捷键状态：当前设置 + 是否注册成功 + 失败原因。 */
+export interface GlobalShortcutState {
+  settings: GlobalShortcutSettings;
+  /** 该快捷键当前是否已成功注册（false = 被禁用或注册失败） */
+  active: boolean;
+  /** 注册失败原因（如冲突）；active 或禁用时为 null */
+  error: string | null;
+}
+
 export const DEFAULT_AI_SETTINGS: AiSettings = {
   provider: 'apiKey',
   baseUrl: 'http://127.0.0.1:12346/v1',
